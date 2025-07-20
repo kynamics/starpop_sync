@@ -65,7 +65,7 @@ def execute_sql_query(config, query):
     """
     connection = None
     try:
-        driver = "{ODBC Driver 17 for SQL Server}" # Change if you have a different driver
+        driver = "{SQL Server}" # Change if you have a different driver
         server = config['SERVER']
         database = config['DATABASE']
         auth_method = config.get('AUTHENTICATION', 'SQL').upper() # Default to SQL Auth
