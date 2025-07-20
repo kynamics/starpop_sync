@@ -96,7 +96,9 @@ def execute_sql_query(config, query, driver):
             password = config['PASSWORD']
             connection_string = f'DRIVER={driver};SERVER={server};DATABASE={database};UID={username};PWD={password};'
             print(f"Connecting to {server} using SQL Server Authentication...")
+            
 
+        print(f"Connection string: {connection_string}")
         connection = pyodbc.connect(connection_string, timeout=10)
         print("Connection successful.")
 
