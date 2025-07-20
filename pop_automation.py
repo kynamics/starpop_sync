@@ -60,7 +60,7 @@ def execute_sql_query(server, database, username, password, query):
     try:
         # Construct the connection string.
         connection_string = (
-            f'DRIVER={{ODBC Driver 17 for SQL Server}};'
+            f'DRIVER={{SQL Server}};'
             f'SERVER={server};'
             f'DATABASE={database};'
             f'UID={username};'
