@@ -24,64 +24,80 @@ import sys # Used for exiting the script gracefully
 #
 CONFIG_FILE = 'env.txt'
 
+def find_sql_server_driver():
+    """
+    Automatically detects and returns the name of an installed SQL Server ODBC driver.
+    """
+    # Prioritized list of common driver names
+    preferred_drivers = [
+        "ODBC Driver 17 for SQL Server",
+        "ODBC Driver 13 for SQL Server",
+        "ODBC Driver 11 for SQL Server",
+        "SQL Server Native Client 11.0",
+        "SQL Server"
+    ]
+    
+    installed_drivers = pyodbc.drivers()
+    
+    for driver in preferred_drivers:
+        if driver in installed_drivers:
+            print(f"Driver found: {driver}")
+            return f"{{{driver}}}" # Return in the format pyodbc expects
+
+    # If no preferred driver is found, print an error and exit
+    print("\n--- DRIVER ERROR ---")
+    print("Could not find a suitable SQL Server ODBC driver.")
+    print("Please install the Microsoft ODBC Driver for SQL Server.")
+    print("Download from: https://docs.microsoft.com/sql/connect/odbc/download-odbc-driver-for-sql-server")
+    if installed_drivers:
+        print("\nAvailable drivers on this system are:")
+        for d in installed_drivers:
+            print(f"- {d}")
+    else:
+        print("\nNo ODBC drivers were found on this system.")
+    print("--------------------")
+    return None
+
 def read_config(filename):
     """
     Reads database configuration from a simple key-value file.
-
-    Args:
-        filename (str): The path to the configuration file.
-
-    Returns:
-        dict: A dictionary containing the configuration, or None if file is not found.
     """
     config = {}
     try:
         with open(filename, 'r') as f:
             for line in f:
                 line = line.strip()
-                if line and not line.startswith('#'): # Ignore empty lines and comments
+                if line and not line.startswith('#'):
                     key, value = line.split('=', 1)
-                    config[key.strip().upper()] = value.strip() # Keys are case-insensitive
+                    config[key.strip().upper()] = value.strip()
         return config
     except FileNotFoundError:
         print(f"Error: Configuration file '{filename}' not found.")
-        print("Please create it with the required settings.")
         return None
     except Exception as e:
         print(f"Error reading configuration file: {e}")
         return None
 
-
-def execute_sql_query(config, query):
+def execute_sql_query(config, query, driver):
     """
     Connects to a SQL Server database, executes a query, and returns the results.
-
-    Args:
-        config (dict): A dictionary with connection details.
-        query (str): The SQL query to execute.
-
-    Returns:
-        list: A list of rows fetched from the database, or None if an error occurs.
     """
     connection = None
     try:
-        driver = "{SQL Server}" # Change if you have a different driver
         server = config['SERVER']
         database = config['DATABASE']
-        auth_method = config.get('AUTHENTICATION', 'SQL').upper() # Default to SQL Auth
+        auth_method = config.get('AUTHENTICATION', 'SQL').upper()
 
         if auth_method == 'WINDOWS':
-            # Windows Authentication uses a trusted connection
             connection_string = f'DRIVER={driver};SERVER={server};DATABASE={database};Trusted_Connection=yes;'
             print(f"Connecting to {server} using Windows Authentication...")
         else:
-            # SQL Server Authentication requires username and password
             username = config['USERNAME']
             password = config['PASSWORD']
             connection_string = f'DRIVER={driver};SERVER={server};DATABASE={database};UID={username};PWD={password};'
             print(f"Connecting to {server} using SQL Server Authentication...")
 
-        connection = pyodbc.connect(connection_string)
+        connection = pyodbc.connect(connection_string, timeout=10)
         print("Connection successful.")
 
         cursor = connection.cursor()
@@ -102,7 +118,6 @@ def execute_sql_query(config, query):
     except KeyError as e:
         print(f"\n--- CONFIGURATION ERROR ---")
         print(f"Your '{CONFIG_FILE}' is missing a required setting: {e}")
-        print("Please check the file and try again.")
         print("---------------------------")
         return None
     except Exception as e:
@@ -116,13 +131,19 @@ def execute_sql_query(config, query):
 
 def main():
     """
-    Main routine to read config, define the query, and process the results.
+    Main routine to find driver, read config, define query, and process results.
     """
+    # Step 1: Automatically find the ODBC driver
+    driver = find_sql_server_driver()
+    if not driver:
+        sys.exit(1) # Exit if no driver was found
+
+    # Step 2: Read configuration from the env.txt file
     config = read_config(CONFIG_FILE)
     if not config:
         sys.exit(1)
 
-    # The query to be executed.
+    # Step 3: Define the query
     sql_query = """
     SELECT
         FilePath
@@ -141,9 +162,10 @@ def main():
         )
     """
 
-    # Call the function to execute the query
-    rows = execute_sql_query(config, sql_query)
+    # Step 4: Execute the query
+    rows = execute_sql_query(config, sql_query, driver)
 
+    # Step 5: Process results
     if rows is not None:
         if rows:
             print("\n--- Query Results ---")
@@ -155,7 +177,5 @@ def main():
     else:
         print("\nQuery execution failed. Check the error messages above.")
 
-
-# --- Script Entry Point ---
 if __name__ == "__main__":
     main()
