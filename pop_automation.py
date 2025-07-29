@@ -193,7 +193,7 @@ def check_new_pop_entries():
     # Step 5: Process results
     if rows is not None:
         if rows:
-            print("\n--- Query Results ---")
+            print("\n--- Query Results for check_new_pop_entries() ---")
             for row in rows:
                 print(f"FilePath: {row[0]}")
             print("--------------------")
