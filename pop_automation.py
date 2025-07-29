@@ -144,25 +144,6 @@ def connect_and_run_query(sql_query: str, config_file: str):
     if not config:
         sys.exit(1)
 
-    # Step 3: Define the query
-    sql_query = """
-    SELECT
-        FilePath
-    FROM
-        isdata15testsql..isfiles
-    WHERE
-        ISFileID IN (
-            SELECT
-                ISFileID
-            FROM
-                isdata15testsql..uwtasksdone
-            WHERE
-                TaskComments LIKE 'Proof of Prior%'
-                AND PolicyID = 482144
-                AND DateCreated > GETDATE() - 1
-        )
-    """
-
     # Step 4: Execute the query
     rows = execute_sql_query(config, sql_query, driver)
     return rows
