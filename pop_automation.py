@@ -1,6 +1,7 @@
 # StarCasualty Pop Automation Program.
 import pyodbc
 import sys # Used for exiting the script gracefully
+from pop_sql import SQL_FIND_POP_BASIC, SQL_FIND_POP_LAST100DAYS
 
 # --- File to hold configuration ---
 # This script now reads connection details from a separate file.
@@ -131,17 +132,15 @@ def execute_sql_query(config, query, driver):
             connection.close()
             print("\nDatabase connection closed.")
 
-def main():
-    """
-    Main routine to find driver, read config, define query, and process results.
-    """
-    # Step 1: Automatically find the ODBC driver
+
+def connect_and_run_query(sql_query: str, config_file: str):
+     # Step 1: Automatically find the ODBC driver
     driver = find_sql_server_driver()
     if not driver:
         sys.exit(1) # Exit if no driver was found
 
     # Step 2: Read configuration from the env.txt file
-    config = read_config(CONFIG_FILE)
+    config = read_config(config_file)
     if not config:
         sys.exit(1)
 
@@ -166,6 +165,30 @@ def main():
 
     # Step 4: Execute the query
     rows = execute_sql_query(config, sql_query, driver)
+    return rows
+
+
+
+def main():
+    """
+    Main routine to find driver, read config, define query, and process results.
+    """
+    rows = connect_and_run_query(sql_query=SQL_FIND_POP_BASIC, config_file=CONFIG_FILE)
+
+    # Step 5: Process results
+    if rows is not None:
+        if rows:
+            print("\n--- Query Results ---")
+            for row in rows:
+                print(f"FilePath: {row[0]}")
+            print("--------------------")
+        else:
+            print("\nNo results found for the given query.")
+    else:
+        print("\nQuery execution failed. Check the error messages above.")
+
+def check_new_pop_entries():
+    rows = connect_and_run_query(sql_query=SQL_FIND_POP_LAST100DAYS, config_file=CONFIG_FILE)
 
     # Step 5: Process results
     if rows is not None:
@@ -180,4 +203,4 @@ def main():
         print("\nQuery execution failed. Check the error messages above.")
 
 if __name__ == "__main__":
-    main()
+    check_new_pop_entries()
