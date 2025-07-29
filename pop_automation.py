@@ -176,7 +176,7 @@ def check_new_pop_entries():
         if rows:
             print("\n--- Query Results for check_new_pop_entries() ---")
             for row in rows:
-                print(f"FilePath: {row[0]}, Date Created: {row[1]}, FileID: {roww[2]}")
+                print(f"FilePath: {row[0]}, Date Created: {row[1]}, FileID: {row[2]}")
             print("--------------------")
         else:
             print("\nNo results found for the given query.")
