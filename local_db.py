@@ -1,8 +1,12 @@
 import sqlite3
+from this import d
 import uuid
 from typing import List, Optional, Tuple
 from datetime import datetime
 import os
+from bot_config import BotConfig, get_config
+import bot_config
+from rich import print
 
 class PopLocalDatabase:
     def __init__(self, db_path: str = "pop_automation_db.sqlite"):
@@ -111,6 +115,15 @@ class PopLocalDatabase:
 def create_pop_database(db_path: str = "pop_automation_db.sqlite") -> PopLocalDatabase:
     """Factory function to create and initialize a PopLocalDatabase instance."""
     return PopLocalDatabase(db_path)
+
+_pop_db = None
+
+def get_pop_db():
+    global _pop_db
+    if _pop_db is None:
+        db_path = bot_config().get(BotConfig.DB_FILE_KEY, BotConfig.DB_FILE_DEFAULT)
+        print("\n Loading")
+        _pop_db = create_pop_database(db_path=db_path)
 
 if __name__ == "__main__":
     db = create_pop_database()

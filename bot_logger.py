@@ -5,7 +5,7 @@ from logging.handlers import RotatingFileHandler
 
 
 class BotLogger:
-    def __init__(self, name="bot", log_dir="logs", max_bytes=10*1024*1024, backup_count=5):
+    def __init__(self, name="StarBot:", log_dir="logs", max_bytes=10*1024*1024, backup_count=5):
         self.name = name
         self.log_dir = log_dir
         
@@ -33,15 +33,29 @@ class BotLogger:
     
     def info(self, message):
         self.logger.info(message)
+        print(f">> {self.name}: {message}\n")
     
     def debug(self, message):
         self.logger.debug(message)
+        print(f">> {self.name}: {message}\n")
     
     def error(self, message):
         self.logger.error(message)
+        print(f">> {self.name}: {message}\n")
     
     def warning(self, message):
         self.logger.warning(message)
+        #print(f">> {self.name}: {message}\n")
     
     def critical(self, message):
         self.logger.critical(message)
+        #print(f">> {self.name}: {message}\n")
+
+
+_bot_logger = None
+
+def get_logger():
+    global _bot_logger
+    if _bot_logger is None:
+        _bot_logger = BotLogger()
+    return _bot_logger
