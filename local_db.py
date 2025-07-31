@@ -111,6 +111,44 @@ class PopLocalDatabase:
                 SELECT COUNT(*) FROM pop_local_state WHERE status = ?
             """, (status,))
             return cursor.fetchone()[0]
+    
+    def add_sample_data(self):
+        """Add 2-3 sample records to the database for testing."""
+        sample_records = [
+            {
+                "file_id": "SC001234",
+                "original_date": "2024-01-15 10:30:00",
+                "filepath": "/claims/auto/SC001234_proof_prior.pdf",
+                "status": "NOT_PROCESSED"
+            },
+            {
+                "file_id": "SC005678",
+                "original_date": "2024-01-20 14:45:00", 
+                "filepath": "/claims/property/SC005678_prior_coverage.pdf",
+                "status": "PROCESSED"
+            },
+            {
+                "file_id": "SC009876",
+                "original_date": "2024-01-25 09:15:00",
+                "filepath": "/claims/liability/SC009876_proof_document.pdf",
+                "status": "IN_PROGRESS"
+            }
+        ]
+        
+        for record in sample_records:
+            existing = self.get_record_by_file_id(record["file_id"])
+            if not existing:
+                pop_id = self.insert_record(
+                    record["file_id"],
+                    record["original_date"],
+                    record["filepath"],
+                    record["status"]
+                )
+                print(f"Added sample record: {record['file_id']} -> {pop_id}")
+            else:
+                print(f"Sample record already exists: {record['file_id']}")
+        
+        return len(sample_records)
 
 def create_pop_database(db_path: str = "pop_automation_db.sqlite") -> PopLocalDatabase:
     """Factory function to create and initialize a PopLocalDatabase instance."""
@@ -122,8 +160,12 @@ def get_pop_db():
     global _pop_db
     if _pop_db is None:
         db_path = bot_config().get(BotConfig.DB_FILE_KEY, BotConfig.DB_FILE_DEFAULT)
-        print("\n Loading")
+        print(f"\n Loading db at {db_path}")
         _pop_db = create_pop_database(db_path=db_path)
+        _pop_db.add_sample_data()
+    return _pop_db
+
+
 
 if __name__ == "__main__":
     db = create_pop_database()
