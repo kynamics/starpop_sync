@@ -2,6 +2,7 @@
 import pyodbc
 import sys # Used for exiting the script gracefully
 from pop_sql import SQL_FIND_POP_BASIC, SQL_FIND_POP_LAST100DAYS
+from bot_logger import get_logger
 
 # --- File to hold configuration ---
 # This script now reads connection details from a separate file.
@@ -24,6 +25,8 @@ from pop_sql import SQL_FIND_POP_BASIC, SQL_FIND_POP_LAST100DAYS
 # DATABASE=isdata15testsql
 #
 CONFIG_FILE = 'env.txt'
+
+logger = get_logger()
 
 def find_sql_server_driver():
     """
@@ -49,6 +52,7 @@ def find_sql_server_driver():
     print("\n--- DRIVER ERROR ---")
     print("Could not find a suitable SQL Server ODBC driver.")
     print("Please install the Microsoft ODBC Driver for SQL Server.")
+    logger.error("Driver error: Counld not find a suitable SQL Server ODBC driver.")
     print("Download from: https://docs.microsoft.com/sql/connect/odbc/download-odbc-driver-for-sql-server")
     if installed_drivers:
         print("\nAvailable drivers on this system are:")
@@ -74,9 +78,11 @@ def read_config(filename):
         return config
     except FileNotFoundError:
         print(f"Error: Configuration file '{filename}' not found.")
+        logger.error(f"Error: Configuration file '{filename}' not found.")
         return None
     except Exception as e:
         print(f"Error reading configuration file: {e}")
+        logger.error(f"Error reading configuration file: {e}")
         return None
 
 def execute_sql_query(config, query, driver):
@@ -114,6 +120,7 @@ def execute_sql_query(config, query, driver):
         sqlstate = ex.args[0]
         print(f"\n--- DATABASE ERROR ---")
         print(f"An error occurred while connecting or querying the database.")
+        logger.error(f"DATABASE ERROR: An error occurred while connecting or querying the database.")
         print(f"SQLSTATE: {sqlstate}")
         print(f"Message: {ex}")
         print("----------------------")
@@ -121,10 +128,12 @@ def execute_sql_query(config, query, driver):
     except KeyError as e:
         print(f"\n--- CONFIGURATION ERROR ---")
         print(f"Your '{CONFIG_FILE}' is missing a required setting: {e}")
+        logger.error("CONFIG ERROR: Your '{CONFIG_FILE}' is missing a required setting: {e}")
         print("---------------------------")
         return None
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
+        logger.error(f"Execute Sql Query: An unexpected error occurred: {e}")
         return None
 
     finally:
@@ -156,7 +165,7 @@ def main():
     """
     rows = connect_and_run_query(sql_query=SQL_FIND_POP_BASIC, config_file=CONFIG_FILE)
 
-    # Step 5: Process results
+    # Process results
     if rows is not None:
         if rows:
             print("\n--- Query Results ---")
@@ -168,10 +177,23 @@ def main():
     else:
         print("\nQuery execution failed. Check the error messages above.")
 
-def check_new_pop_entries():
+
+def get_file_from_local_db(file_id: str):
+    """
+    Returns the current status of the file_id from local db, this is needed to see if we have
+    already processed the file or begun processing the file. 
+    """
+    pass
+
+def process_incoming_pop(filepath: str, date_created:str, file_id: str):
+    logger.info(f"\n Process Incoming Pop: processing {filepath}, {date_created}, {file_id}")
+
+    pass
+
+def run_pop_automation_loop():
     rows = connect_and_run_query(sql_query=SQL_FIND_POP_LAST100DAYS, config_file=CONFIG_FILE)
 
-    # Step 5: Process results
+    #  Process results
     if rows is not None:
         if rows:
             print("\n--- Query Results for check_new_pop_entries() ---")
@@ -179,9 +201,10 @@ def check_new_pop_entries():
                 print(f"FilePath: {row[0]}, Date Created: {row[1]}, FileID: {row[2]}")
             print("--------------------")
         else:
-            print("\nNo results found for the given query.")
+            logger.info("\nNo results found for the given query.")
+            
     else:
         print("\nQuery execution failed. Check the error messages above.")
 
 if __name__ == "__main__":
-    check_new_pop_entries()
+    run_pop_automation_loop()
