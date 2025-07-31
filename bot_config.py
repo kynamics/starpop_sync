@@ -7,6 +7,8 @@ class BotConfig:
     DB_FILE_KEY = "DB_FILE"
     DB_FILE_DEFAULT = "pop_automation_db.sqlite"
     LOGS_DIR_KEY = "LOGS_DIR"
+    LOCAL_POP_FILEDIR_DEFAULT = "pop_files/"
+    LOCAL_POP_FILEDIR_KEY = "POP_FILEDIR"
 
     def __init__(self, config_file="starbot.conf"):
         self.config_file = config_file

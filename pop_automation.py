@@ -1,8 +1,11 @@
 # StarCasualty Pop Automation Program.
+import bot_config
+from local_db import get_pop_db
 import pyodbc
 import sys # Used for exiting the script gracefully
 from pop_sql import SQL_FIND_POP_BASIC, SQL_FIND_POP_LAST100DAYS
 from bot_logger import get_logger
+import shutil, os
 
 # --- File to hold configuration ---
 # This script now reads connection details from a separate file.
@@ -178,16 +181,64 @@ def main():
         print("\nQuery execution failed. Check the error messages above.")
 
 
-def get_file_from_local_db(file_id: str):
+def should_process_file_check_local_db(file_id: str) -> bool:
     """
     Returns the current status of the file_id from local db, this is needed to see if we have
     already processed the file or begun processing the file. 
     """
-    pass
+    db = get_pop_db()
+    record = db.get_record_by_file_id(file_id=file_id)
+    if record is not None:
+        print(record)
+        return record[4] == "NOT_PROCESSED"  # Index 4 contains the status based on the DB schema
+    return True
+
+def copy_file_into_localdir(filepath, local_subdir):
+    """
+    Copy a file from source filepath to a local subdirectory.
+    
+    Args:
+        filepath: Full source file path
+        local_subdir: Local subdirectory to copy file to, relative to current dir
+        
+    Returns:
+        str: Path to the copied local file, or None if copy failed
+    """
+    try:
+        # Create the local subdirectory if it doesn't exist
+        os.makedirs(local_subdir, exist_ok=True)
+        
+        # Extract just the filename from the full path
+        filename = os.path.basename(filepath)
+        
+        # Construct destination path
+        dest_path = os.path.join(local_subdir, filename)
+        
+        # Copy the file
+        shutil.copy2(filepath, dest_path)
+        
+        get_logger().info(f"Copied {filepath} to {dest_path}")
+        return dest_path
+        
+    except Exception as e:
+        get_logger().error(f"Failed to copy file {filepath}: {str(e)}")
+        return None
+
 
 def process_incoming_pop(filepath: str, date_created:str, file_id: str):
-    logger.info(f"\n Process Incoming Pop: processing {filepath}, {date_created}, {file_id}")
+    logger.info(f"\n Checking Incoming Pop request:  {filepath}, {date_created}, {file_id}")
 
+    if should_process_file_check_local_db(file_id=file_id):
+        local_subdir = bot_config().get(bot_config.BotConfig.LOCAL_POP_FILEDIR_KEY, bot_config.BotConfig.LOCAL_POP_FILEDIR_DEFAULT)
+        if copy_file_into_localdir(filepath=filepath, local_subdir=local_subdir) is None:
+            get_logger().error("\n File copy failed.")
+            # TODO: Mark DB with error. 
+            return 
+        else:
+            # TODO:Use gemini to extract info.
+            pass
+    else:
+        get_logger().info(f"\n Skipping fileid {file_id} since already processed.")
     pass
 
 def run_pop_automation_loop():

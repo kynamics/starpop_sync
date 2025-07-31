@@ -2,6 +2,7 @@ import logging
 import os
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
+from rich import print
 
 
 class BotLogger:
@@ -45,11 +46,11 @@ class BotLogger:
     
     def warning(self, message):
         self.logger.warning(message)
-        #print(f">> {self.name}: {message}\n")
+        print(f">> {self.name}: {message}\n")
     
     def critical(self, message):
         self.logger.critical(message)
-        #print(f">> {self.name}: {message}\n")
+        print(f">> {self.name}: {message}\n")
 
 
 _bot_logger = None
