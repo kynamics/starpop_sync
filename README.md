@@ -1,10 +1,11 @@
 # star_sync
 
 
-Use this repo to sync between Microsoft m/c and macbook
+Implements Proof of prior automation for StarCasualty.
 
-Next Step:
+- Reads Pop document from Sql server using pyodbc
+- maintains a local sqlite db of document status (processed, failed, in progress).
+- uses GenAI APIs to extract json information.
 
-- process incoming file in pop_automation.
-- use gemini_with_pdf to extract fields.
-- use rich python library to output to log and console. 
+Remaining work:
+- Write results back to sql table.
