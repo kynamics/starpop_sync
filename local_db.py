@@ -9,6 +9,11 @@ import bot_config
 from rich import print
 
 class PopLocalDatabase:
+    STATUS_NOT_PROCESSED = "NOT_PROCESSED"
+    STATUS_IN_PROGRESS = "IN_PROGRESS"
+    STATUS_FAILED = "FAILED"
+    STATUS_PROCESSED = "PROCESSED"
+    
     def __init__(self, db_path: str = "pop_automation_db.sqlite"):
         self.db_path = db_path
         self.init_database()

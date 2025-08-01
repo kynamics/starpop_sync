@@ -1,11 +1,15 @@
 # StarCasualty Pop Automation Program.
+from tarfile import data_filter
+
+from attr import dataclass
 import bot_config
-from local_db import get_pop_db
+from local_db import PopLocalDatabase, get_pop_db
 import pyodbc
 import sys # Used for exiting the script gracefully
 from pop_sql import SQL_FIND_POP_BASIC, SQL_FIND_POP_LAST100DAYS
-from bot_logger import get_logger
+from bot_logger import get_logger, get_console
 import shutil, os
+from gemini_with_pdf import define_json_schema, call_gemini_api_with_pdf, validate_json_output
 
 # --- File to hold configuration ---
 # This script now reads connection details from a separate file.
@@ -162,23 +166,23 @@ def connect_and_run_query(sql_query: str, config_file: str):
 
 
 
-def main():
-    """
-    Main routine to find driver, read config, define query, and process results.
-    """
-    rows = connect_and_run_query(sql_query=SQL_FIND_POP_BASIC, config_file=CONFIG_FILE)
+# def main():
+#     """
+#     Main routine to find driver, read config, define query, and process results.
+#     """
+#     rows = connect_and_run_query(sql_query=SQL_FIND_POP_BASIC, config_file=CONFIG_FILE)
 
-    # Process results
-    if rows is not None:
-        if rows:
-            print("\n--- Query Results ---")
-            for row in rows:
-                print(f"FilePath: {row[0]}")
-            print("--------------------")
-        else:
-            print("\nNo results found for the given query.")
-    else:
-        print("\nQuery execution failed. Check the error messages above.")
+#     # Process results
+#     if rows is not None:
+#         if rows:
+#             print("\n--- Query Results ---")
+#             for row in rows:
+#                 print(f"FilePath: {row[0]}")
+#             print("--------------------")
+#         else:
+#             print("\nNo results found for the given query.")
+#     else:
+#         print("\nQuery execution failed. Check the error messages above.")
 
 
 def should_process_file_check_local_db(file_id: str) -> bool:
@@ -192,6 +196,20 @@ def should_process_file_check_local_db(file_id: str) -> bool:
         print(record)
         return record[4] == "NOT_PROCESSED"  # Index 4 contains the status based on the DB schema
     return True
+
+def update_local_db(file_id: str, date_created: str, filepath: str, status: str) -> bool: 
+    db = get_pop_db()
+    record = db.get_record_by_file_id(file_id=file_id)
+    if record is not None:
+        if not db.update_status(record[0], status): # Index 0 contains the processing id
+            get_logger().error(f"\n Attempting to update status to local db failed: {record}")
+            return False
+        else:
+            return True
+    p_id = db.insert_record(file_id=file_id, original_date=date_created, filepath=filepath, status=status)
+    get_logger().info(f"\n Inserted record into local db with processing id {p_id}")
+    return True
+
 
 def copy_file_into_localdir(filepath, local_subdir):
     """
@@ -214,7 +232,9 @@ def copy_file_into_localdir(filepath, local_subdir):
         # Construct destination path
         dest_path = os.path.join(local_subdir, filename)
         
-        # Copy the file
+        # Copy the file, overwriting if it exists
+        if os.path.exists(dest_path):
+            os.remove(dest_path)
         shutil.copy2(filepath, dest_path)
         
         get_logger().info(f"Copied {filepath} to {dest_path}")
@@ -224,6 +244,38 @@ def copy_file_into_localdir(filepath, local_subdir):
         get_logger().error(f"Failed to copy file {filepath}: {str(e)}")
         return None
 
+@dataclass
+class PopResult:
+    """
+    Result of processing a POP file with Gemini.
+    """
+    is_valid: bool
+    json_output: dict
+    
+
+def process_pop_with_gemini(filepath: str):
+    """
+    Process a POP file with Gemini.
+    
+    """
+    schema = define_json_schema()
+
+    # Call the Gemini API with the temporary PDF file
+    with get_console().status("[bold green]Processing Proof of prior (POP) document ...", spinner="dots"):
+        parsed_json = call_gemini_api_with_pdf(filepath, schema)
+
+    if parsed_json is not None:
+        if validate_json_output(parsed_json, schema):
+            get_logger().info(f"\n Gemini API returned valid JSON for {filepath}")
+        else:
+            get_logger().error(f"\n Gemini API returned invalid JSON for {filepath}")
+    else:
+        # TODO: Mark DB with processing error.
+        get_logger().error(f"\n Gemini API returned no JSON for {filepath}")
+        
+        # TODO: Mark DB with processing error.
+        return False
+    return True
 
 def process_incoming_pop(filepath: str, date_created:str, file_id: str):
     logger.info(f"\n Checking Incoming Pop request:  {filepath}, {date_created}, {file_id}")
@@ -232,7 +284,8 @@ def process_incoming_pop(filepath: str, date_created:str, file_id: str):
         local_subdir = bot_config().get(bot_config.BotConfig.LOCAL_POP_FILEDIR_KEY, bot_config.BotConfig.LOCAL_POP_FILEDIR_DEFAULT)
         if copy_file_into_localdir(filepath=filepath, local_subdir=local_subdir) is None:
             get_logger().error("\n File copy failed.")
-            # TODO: Mark DB with error. 
+            # TODO: Mark DB with error. Process error ?
+            update_local_db(file_id=file_id, date_created=date_created, filepath=filepath, status=PopLocalDatabase.STATUS_FAILED)
             return 
         else:
             # TODO:Use gemini to extract info.
