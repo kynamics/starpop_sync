@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from rich import print
-
+from rich.console import Console
 
 class BotLogger:
     def __init__(self, name="StarBot:", log_dir="logs", max_bytes=10*1024*1024, backup_count=5):
@@ -60,3 +60,11 @@ def get_logger():
     if _bot_logger is None:
         _bot_logger = BotLogger()
     return _bot_logger
+
+
+_console = None
+def get_console():
+    global _console
+    if _console is None:
+        _console = Console()
+    return _console

@@ -7,6 +7,7 @@ class BotConfig:
     DB_FILE_KEY = "DB_FILE"
     DB_FILE_DEFAULT = "pop_automation_db.sqlite"
     LOGS_DIR_KEY = "LOGS_DIR"
+    LOGS_DIR_DEFAULT = "logs/"
     LOCAL_POP_FILEDIR_DEFAULT = "pop_files/"
     LOCAL_POP_FILEDIR_KEY = "POP_FILEDIR"
 
