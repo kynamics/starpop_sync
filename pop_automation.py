@@ -1,5 +1,6 @@
 # StarCasualty Pop Automation Program.
 from tarfile import data_filter
+from typing import Dict, Any, Optional
 
 from attr import dataclass
 import bot_config
@@ -249,9 +250,89 @@ class PopResult:
     """
     Result of processing a POP file with Gemini.
     """
-    is_valid: bool
+    all_fields_present: bool
     json_output: dict
+    policy_id: str
+    named_insured: str
+    effective_date: str
+    expiration_date: str
+    agent_code: int
+    prior_carrier: str
     
+
+def extract_pop_info(json_result:Dict[str, Any]) -> PopResult:
+    """
+    Extract information from a POP file.
+    """
+    # Initialize variables
+    all_fields_present = True
+    agent_code = None
+    
+    # Extract agent info if present
+    if "insurance_agent_info" in json_result:
+        agent_info = json_result["insurance_agent_info"]
+        if "agent_number" in agent_info:
+            try:
+                agent_code = int(agent_info["agent_number"])
+            except (ValueError, TypeError):
+                agent_code = None
+                all_fields_present = False
+        else:
+            all_fields_present = False
+    else:
+        all_fields_present = False
+
+    # Extract policy info
+    policy_info = json_result.get("policy_summary", {})
+    if not policy_info:
+        all_fields_present = False
+    else:
+        if "policy_number" in policy_info:
+            policy_id = policy_info["policy_number"]
+        else:
+            all_fields_present = False
+        if "policy_period" in policy_info:
+            policy_period = policy_info["policy_period"]
+            if "start_date" in policy_period:
+                effective_date = policy_period["start_date"]
+            else:
+                all_fields_present = False
+            if "end_date" in policy_period:
+                expiration_date = policy_period["end_date"]
+            else:
+                all_fields_present = False
+        else:
+            all_fields_present = False
+        if "underwritten_by" in policy_info:
+            prior_carrier = policy_info["underwritten_by"]
+        else:
+            all_fields_present = False
+  
+
+    # Extract named insured info
+    named_insured = json_result.get("named_insured", {}).get("name")
+    if not named_insured:
+        all_fields_present = False
+    else:
+        named_insured = named_insured.strip()
+
+    
+    # Create PopResult with extracted fields
+    result = PopResult(
+        all_fields_present=all_fields_present,
+        json_output=json_result,
+        policy_id=policy_id,
+        named_insured=named_insured,
+        effective_date=effective_date,
+        expiration_date=expiration_date, 
+        agent_code=agent_code,
+        prior_carrier=None # Not provided in schema
+    )
+
+    get_logger().info(f"\n Extracted POP info: {result}")
+    
+    return result
+
 
 def process_pop_with_gemini(filepath: str):
     """
@@ -269,13 +350,19 @@ def process_pop_with_gemini(filepath: str):
             get_logger().info(f"\n Gemini API returned valid JSON for {filepath}")
         else:
             get_logger().error(f"\n Gemini API returned invalid JSON for {filepath}")
+        pop_result = extract_pop_info(parsed_json)
+        if pop_result.all_fields_present:
+            get_logger().info(f"\n Extracted POP info: {pop_result}")
+            return pop_result
+        else:
+            get_logger().error(f"\n Failed to extract all fields, partial result {pop_result}")
+            return pop_result
     else:
         # TODO: Mark DB with processing error.
         get_logger().error(f"\n Gemini API returned no JSON for {filepath}")
         
         # TODO: Mark DB with processing error.
-        return False
-    return True
+        return None
 
 def process_incoming_pop(filepath: str, date_created:str, file_id: str):
     logger.info(f"\n Checking Incoming Pop request:  {filepath}, {date_created}, {file_id}")
@@ -288,8 +375,7 @@ def process_incoming_pop(filepath: str, date_created:str, file_id: str):
             update_local_db(file_id=file_id, date_created=date_created, filepath=filepath, status=PopLocalDatabase.STATUS_FAILED)
             return 
         else:
-            # TODO:Use gemini to extract info.
-            pass
+            pop_result = process_pop_with_gemini(filepath=filepath)
     else:
         get_logger().info(f"\n Skipping fileid {file_id} since already processed.")
     pass

@@ -172,7 +172,7 @@ def log_gemini_pdf_call(pdf_file_path: str,
         success: Whether the API call was successful
         error_message: Error message if the call failed
     """
-    gemini_logger.log_pdf_processing(pdf_file_path, json_output, success, error_message)
+    get_gemini_logger().log_pdf_processing(pdf_file_path, json_output, success, error_message)
 
 
 def get_gemini_logger():
