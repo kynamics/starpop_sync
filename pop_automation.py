@@ -389,6 +389,7 @@ def run_pop_automation_loop():
             print("\n--- Query Results for check_new_pop_entries() ---")
             for row in rows:
                 print(f"FilePath: {row[0]}, Date Created: {row[1]}, FileID: {row[2]}")
+                process_incoming_pop(filepath=row[0], date_created=row[1], file_id=row[2])
             print("--------------------")
         else:
             logger.info("\nNo results found for the given query.")
