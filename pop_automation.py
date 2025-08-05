@@ -11,6 +11,7 @@ from pop_sql import SQL_FIND_POP_BASIC, SQL_FIND_POP_LAST100DAYS
 from bot_logger import get_logger, get_console
 import shutil, os
 from gemini_with_pdf import define_json_schema, call_gemini_api_with_pdf, validate_json_output
+from bot_config import get_config
 
 # --- File to hold configuration ---
 # This script now reads connection details from a separate file.
@@ -368,7 +369,7 @@ def process_incoming_pop(filepath: str, date_created:str, file_id: str):
     logger.info(f"\n Checking Incoming Pop request:  {filepath}, {date_created}, {file_id}")
 
     if should_process_file_check_local_db(file_id=file_id):
-        local_subdir = bot_config().get(bot_config.BotConfig.LOCAL_POP_FILEDIR_KEY, bot_config.BotConfig.LOCAL_POP_FILEDIR_DEFAULT)
+        local_subdir = get_config().get(bot_config.BotConfig.LOCAL_POP_FILEDIR_KEY, bot_config.BotConfig.LOCAL_POP_FILEDIR_DEFAULT)
         if copy_file_into_localdir(filepath=filepath, local_subdir=local_subdir) is None:
             get_logger().error("\n File copy failed.")
             # TODO: Mark DB with error. Process error ?
