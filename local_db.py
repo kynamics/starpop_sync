@@ -1,5 +1,5 @@
 import sqlite3
-from this import d
+# from this import d
 import uuid
 from typing import List, Optional, Tuple
 from datetime import datetime
