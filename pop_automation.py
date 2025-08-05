@@ -1,5 +1,5 @@
 # StarCasualty Pop Automation Program.
-from tarfile import data_filter
+# from tarfile import data_filter
 from typing import Dict, Any, Optional
 
 from attr import dataclass
