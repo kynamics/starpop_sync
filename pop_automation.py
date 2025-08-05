@@ -32,7 +32,10 @@ from bot_config import get_config
 # AUTHENTICATION=WINDOWS
 # SERVER=192.168.2.10
 # DATABASE=isdata15testsql
-#
+
+
+# WINDOWS NOTES
+# Double quotes are not allowed in the config file. They don't work.
 CONFIG_FILE = 'env.txt'
 
 logger = get_logger()
