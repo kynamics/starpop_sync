@@ -21,6 +21,9 @@ class PopLocalDatabase:
     def init_database(self):
         """Initialize the SQLite database and create tables if they don't exist."""
         print(f"\n Initializing database at {self.db_path}")
+        print("Current working directory:", os.getcwd())
+        # Ensure parent directory exists
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("""
