@@ -164,7 +164,7 @@ _pop_db = None
 def get_pop_db():
     global _pop_db
     if _pop_db is None:
-        db_path = bot_config().get(BotConfig.DB_FILE_KEY, BotConfig.DB_FILE_DEFAULT)
+        db_path = get_config().get(BotConfig.DB_FILE_KEY, BotConfig.DB_FILE_DEFAULT)
         print(f"\n Loading db at {db_path}")
         _pop_db = create_pop_database(db_path=db_path)
         _pop_db.add_sample_data()
