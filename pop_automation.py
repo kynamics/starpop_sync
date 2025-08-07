@@ -1,5 +1,6 @@
 # StarCasualty Pop Automation Program.
 # from tarfile import data_filter
+from cmath import exp
 from typing import Dict, Any, Optional
 
 from attr import dataclass
@@ -7,7 +8,7 @@ import bot_config
 from local_db import PopLocalDatabase, get_pop_db
 import pyodbc
 import sys # Used for exiting the script gracefully
-from pop_sql import SQL_FIND_POP_BASIC, SQL_FIND_POP_LAST100DAYS
+from pop_sql import SQL_FIND_POP_BASIC, SQL_FIND_POP_LAST100DAYS, get_sql_find_popfields_testdb
 from bot_logger import get_logger, get_console
 import shutil, os
 from gemini_with_pdf import define_json_schema, call_gemini_api_with_pdf, validate_json_output
@@ -262,7 +263,23 @@ class PopResult:
     expiration_date: str
     agent_code: int
     prior_carrier: str
-    
+
+@dataclass
+class FindPopFieldsResult:
+    """
+    Result of Sql query to find the POP fields for a later match determination.
+    """
+    policy_id: str
+    named_insured: str
+    effective_date: str
+    expiration_date: str
+    agent_code: int
+    prior_carrier: str
+
+    def __str__(self):
+        return f"""FindPopFieldsResult(policy_id={self.policy_id}, named_insured={self.named_insured},
+         effective_date={self.effective_date}, expiration_date={self.expiration_date},
+          agent_code={self.agent_code}, prior_carrier={self.prior_carrier})"""
 
 def extract_pop_info(json_result:Dict[str, Any]) -> PopResult:
     """
@@ -337,6 +354,29 @@ def extract_pop_info(json_result:Dict[str, Any]) -> PopResult:
     
     return result
 
+def run_find_popfields_query(policy_id: str):
+    find_fields_query = get_sql_find_popfields_testdb(policyid=policy_id)
+    get_logger().info(f"Find Pop Fields query: {find_fields_query}")
+    rows = connect_and_run_query(sql_query=find_fields_query, config_file=CONFIG_FILE)
+    pop_fields_results = []
+    if rows is not None:
+        get_logger().info(f"Find Pop Fields query returned {len(rows)} rows")
+        for row in rows:
+            get_logger().info(f"Row: {row}")
+            match_result = FindPopFieldsResult(policy_id=row[0],
+                 named_insured=row[1], effective_date=row[2],
+                 expiration_date=row[3], agent_code=row[4],
+                 prior_carrier=row[9])
+            get_logger().info(f"Find Pop Fields result: {match_result}")
+            pop_fields_results.append(match_result)
+    else:
+        get_logger().error(f"Find Pop Fields query returned no rows for policy_id {policy_id}")
+        return None
+    return pop_fields_results
+
+def compute_match(pop_document_result: PopResult, pop_fields_results: FindPopFieldsResult):
+    pass
+
 
 def process_pop_with_gemini(filepath: str):
     """
@@ -368,18 +408,24 @@ def process_pop_with_gemini(filepath: str):
         # TODO: Mark DB with processing error.
         return None
 
-def process_incoming_pop(filepath: str, date_created:str, file_id: str):
-    logger.info(f"\n Checking Incoming Pop request:  {filepath}, {date_created}, {file_id}")
+def process_incoming_pop(filepath: str, date_created:str, file_id: str, policy_id:str):
+    logger.info(f"\n Checking Incoming Pop request:  {filepath}, {date_created}, {file_id}, {policy_id}")
 
     if should_process_file_check_local_db(file_id=file_id):
         local_subdir = get_config().get(bot_config.BotConfig.LOCAL_POP_FILEDIR_KEY, bot_config.BotConfig.LOCAL_POP_FILEDIR_DEFAULT)
         if copy_file_into_localdir(filepath=filepath, local_subdir=local_subdir) is None:
-            get_logger().error("\n File copy failed.")
+            get_logger().error("\n File copy failed. Marking DB with error.")
             # TODO: Mark DB with error. Process error ?
             update_local_db(file_id=file_id, date_created=date_created, filepath=filepath, status=PopLocalDatabase.STATUS_FAILED)
             return 
         else:
             pop_result = process_pop_with_gemini(filepath=filepath)
+            match_results = run_find_popfields_query(policy_id=policy_id)
+            if match_results is not None:
+                get_logger().info(f"Match results: {match_results}")
+            else:
+                get_logger().error(f"No match results found for policy_id {policy_id}")
+            # TODO: Process match results.
     else:
         get_logger().info(f"\n Skipping fileid {file_id} since already processed.")
     pass
@@ -393,7 +439,9 @@ def run_pop_automation_loop():
             print("\n--- Query Results for check_new_pop_entries() ---")
             for row in rows:
                 print(f"FilePath: {row[0]}, Date Created: {row[1]}, FileID: {row[2]}")
-                process_incoming_pop(filepath=row[0], date_created=row[1], file_id=row[2])
+                process_incoming_pop(filepath=row[0], date_created=row[1], file_id=row[2], policy_id=row[3])
+                print("We process only the first one.. exiting")
+                break
             print("--------------------")
         else:
             logger.info("\nNo results found for the given query.")

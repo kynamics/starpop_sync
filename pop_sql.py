@@ -2,7 +2,7 @@
 
 SQL_FIND_POP_LAST100DAYS = """
 SELECT 
-    FilePath, DateCreated, ISFileID
+    FilePath, DateCreated, ISFileID, PolicyID
 FROM
     isdata15testsql..isfiles 
 WHERE
@@ -34,3 +34,22 @@ SQL_FIND_POP_BASIC = """
         )
     
 """
+
+
+def get_sql_find_popfields_testdb(policyid):
+    SQL_FIND_POPFIELDS_TESTDB = f"""
+select top 1 d.policyid, NamedInsured, d.EffectiveDate , d.ExpirationDate ,d.agentcode,DBAName,AgentName,ChoiceValue,ChoiceText, dbo.ReadWDDX_udf (decInfo,'PriorCarrier') as PriorCarrier 
+from ISData15TestSQL..decpages d
+inner join
+ISData15TestSQL..Agents a on 
+d.AgentCode =a.AgentCode 
+inner join ISRating15testSQL..ManualChoices m on 
+dbo.ReadWDDX_udf (decInfo,'PriorCarrier') =ChoiceValue
+and m.ManualID =622
+inner join ISData15TestSQL..UWMaster w
+on
+d.PolicyID = w.PolicyID 
+where decpageid=1 
+and d.policyid={policyid}
+"""
+    return SQL_FIND_POPFIELDS_TESTDB

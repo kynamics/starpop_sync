@@ -8,4 +8,7 @@ Implements Proof of prior automation for StarCasualty.
 - uses GenAI APIs to extract json information.
 
 Remaining work:
-- Write results back to sql table.
+-  Add PolicyID everywhere (to sqlite etc)
+-  Run match query, check match and write results back using SQL to Sql Server.
+-  Run automation loop with console terminal on separate thread. 
+
