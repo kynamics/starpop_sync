@@ -13,6 +13,7 @@ from bot_logger import get_logger, get_console
 import shutil, os
 from gemini_with_pdf import define_json_schema, call_gemini_api_with_pdf, validate_json_output
 from bot_config import get_config
+from star_util import compare_dates, compare_strings
 
 # --- File to hold configuration ---
 # This script now reads connection details from a separate file.
@@ -394,35 +395,6 @@ def find_popfields_sqldb_query(policy_id: str):
         return None
     return pop_fields_results
 
-def compare_dates(date1, date2) -> bool:
-    """
-    Compare two dates for equality. Handles both string and datetime inputs.
-    
-    Args:
-        date1: First date (str or datetime)
-        date2: Second date (str or datetime)
-        
-    Returns:
-        bool: True if dates are equal, False otherwise
-    """
-    from datetime import datetime
-
-    # Convert strings to datetime if needed
-    if isinstance(date1, str):
-        try:
-            date1 = datetime.strptime(date1, '%Y-%m-%d')
-        except ValueError:
-            return False
-            
-    if isinstance(date2, str):
-        try:
-            date2 = datetime.strptime(date2, '%Y-%m-%d')
-        except ValueError:
-            return False
-
-    # Compare datetime objects
-    return date1.date() == date2.date()
-
 
 def compute_match(pop_document_result: PopResult, pop_sqldb_result: FindPopFieldsResult):
     all_fields_match = True
@@ -436,10 +408,10 @@ def compute_match(pop_document_result: PopResult, pop_sqldb_result: FindPopField
     if not compare_dates(pop_document_result.expiration_date, pop_sqldb_result.expiration_date):
         all_fields_match = False
         fields_that_dont_match.append(MatchField(field_name="expiration_date", pop_document_value=pop_document_result.expiration_date, sqldb_value=pop_sqldb_result.expiration_date))
-    if pop_document_result.agent_code.lower() != pop_sqldb_result.agent_code.lower():
+    if pop_document_result.agent_code != pop_sqldb_result.agent_code:
         all_fields_match = False
         fields_that_dont_match.append(MatchField(field_name="agent_code", pop_document_value=pop_document_result.agent_code, sqldb_value=pop_sqldb_result.agent_code))
-    if pop_document_result.prior_carrier != pop_sqldb_result.prior_carrier:
+    if not compare_strings(pop_document_result.prior_carrier, pop_sqldb_result.prior_carrier):
         all_fields_match = False
         fields_that_dont_match.append(MatchField(field_name="prior_carrier", pop_document_value=pop_document_result.prior_carrier, sqldb_value=pop_sqldb_result.prior_carrier))
 

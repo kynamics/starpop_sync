@@ -12,3 +12,6 @@ Remaining work:
 -  Run match query, check match and write results back using SQL to Sql Server.
 -  Run automation loop with console terminal on separate thread. 
 
+Error:
+
+some fields can be None during the match 
