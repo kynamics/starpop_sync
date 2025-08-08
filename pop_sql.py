@@ -16,6 +16,22 @@ WHERE
     )
 """
 
+SQL_FIND_POP_LAST_ONEDAY = """
+SELECT 
+    FilePath, DateCreated, ISFileID, PolicyID
+FROM
+    isdata15testsql..isfiles 
+WHERE
+    ISFileID in (
+        SELECT 
+            ISFileID 
+        FROM 
+            isdata15testsql..uwtasksdone 
+        WHERE
+            TaskComments LIKE 'Proof of Prior%' AND DateCreated > getdate()-1
+    )
+"""
+
 SQL_FIND_POP_BASIC = """
     SELECT
         FilePath

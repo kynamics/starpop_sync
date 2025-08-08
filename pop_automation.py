@@ -8,7 +8,7 @@ import bot_config
 from local_db import PopLocalDatabase, get_pop_db
 import pyodbc
 import sys # Used for exiting the script gracefully
-from pop_sql import SQL_FIND_POP_BASIC, SQL_FIND_POP_LAST100DAYS, get_sql_find_popfields_testdb
+from pop_sql import SQL_FIND_POP_BASIC, SQL_FIND_POP_LAST100DAYS, get_sql_find_popfields_testdb, SQL_FIND_POP_LAST_ONEDAY
 from bot_logger import get_logger, get_console
 import shutil, os
 from gemini_with_pdf import define_json_schema, call_gemini_api_with_pdf, validate_json_output
@@ -471,6 +471,8 @@ def process_incoming_pop_transaction(filepath: str, date_created: str, file_id: 
             sqldb_result = sqldb_results[0]
             match_result = compute_match(pop_document_result=document_result, pop_sqldb_result=sqldb_result)
             get_logger().info(f"Final Match result: {match_result}")
+            # TODO: Store the match result in the MSSql DB.
+            update_local_db(file_id=file_id, date_created=date_created, filepath=filepath, status=PopLocalDatabase.STATUS_PROCESSED)
             return match_result
     else:
         get_logger().info(f"\n Skipping fileid {file_id} since already processed.")
@@ -478,7 +480,7 @@ def process_incoming_pop_transaction(filepath: str, date_created: str, file_id: 
     
 
 def run_pop_automation_loop():
-    rows = connect_and_run_query(sql_query=SQL_FIND_POP_LAST100DAYS, config_file=CONFIG_FILE)
+    rows = connect_and_run_query(sql_query=SQL_FIND_POP_LAST_ONEDAY, config_file=CONFIG_FILE)
 
     #  Process results
     if rows is not None:
