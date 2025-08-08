@@ -1,7 +1,7 @@
 # StarCasualty Pop Automation Program.
 # from tarfile import data_filter
 from cmath import exp
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional, Tuple
 
 from attr import dataclass
 import bot_config
@@ -281,6 +281,26 @@ class FindPopFieldsResult:
          effective_date={self.effective_date}, expiration_date={self.expiration_date},
           agent_code={self.agent_code}, prior_carrier={self.prior_carrier})"""
 
+@dataclass
+class MatchField:
+    """
+    A field that needs to be matched.
+    """
+    field_name: str
+    pop_document_value: str
+    sqldb_value: str
+
+@dataclass
+class MatchResult:
+    """
+    Result of matching a POP file with a POP fields result.
+    """
+    policy_id: str
+    all_fields_match: bool
+    fields_that_dont_match: List[MatchField]  # (field_name, expected_value, actual_value)
+
+
+
 def extract_pop_info(json_result:Dict[str, Any]) -> PopResult:
     """
     Extract information from a POP file.
@@ -354,7 +374,7 @@ def extract_pop_info(json_result:Dict[str, Any]) -> PopResult:
     
     return result
 
-def run_find_popfields_query(policy_id: str):
+def find_popfields_sqldb_query(policy_id: str):
     find_fields_query = get_sql_find_popfields_testdb(policyid=policy_id)
     get_logger().info(f"Find Pop Fields query: {find_fields_query}")
     rows = connect_and_run_query(sql_query=find_fields_query, config_file=CONFIG_FILE)
@@ -374,11 +394,29 @@ def run_find_popfields_query(policy_id: str):
         return None
     return pop_fields_results
 
-def compute_match(pop_document_result: PopResult, pop_fields_results: FindPopFieldsResult):
-    pass
+def compute_match(pop_document_result: PopResult, pop_sqldb_result: FindPopFieldsResult):
+    all_fields_match = True
+    fields_that_dont_match = []
+    if pop_document_result.named_insured.lower() != pop_sqldb_result.named_insured.lower():
+        all_fields_match = False
+        fields_that_dont_match.append(MatchField(field_name="named_insured", pop_document_value=pop_document_result.named_insured, sqldb_value=pop_sqldb_result.named_insured))
+    if pop_document_result.effective_date.lower() != pop_sqldb_result.effective_date.lower():
+        all_fields_match = False
+        fields_that_dont_match.append(MatchField(field_name="effective_date", pop_document_value=pop_document_result.effective_date, sqldb_value=pop_sqldb_result.effective_date))
+    if pop_document_result.expiration_date.lower() != pop_sqldb_result.expiration_date.lower():
+        all_fields_match = False
+        fields_that_dont_match.append(MatchField(field_name="expiration_date", pop_document_value=pop_document_result.expiration_date, sqldb_value=pop_sqldb_result.expiration_date))
+    if pop_document_result.agent_code.lower() != pop_sqldb_result.agent_code.lower():
+        all_fields_match = False
+        fields_that_dont_match.append(MatchField(field_name="agent_code", pop_document_value=pop_document_result.agent_code, sqldb_value=pop_sqldb_result.agent_code))
+    if pop_document_result.prior_carrier != pop_sqldb_result.prior_carrier:
+        all_fields_match = False
+        fields_that_dont_match.append(MatchField(field_name="prior_carrier", pop_document_value=pop_document_result.prior_carrier, sqldb_value=pop_sqldb_result.prior_carrier))
+
+    return MatchResult(policy_id=pop_sqldb_result.policy_id, all_fields_match=all_fields_match, fields_that_dont_match=fields_that_dont_match)
 
 
-def process_pop_with_gemini(filepath: str):
+def process_document_with_gemini(filepath: str):
     """
     Process a POP file with Gemini.
     
@@ -408,7 +446,7 @@ def process_pop_with_gemini(filepath: str):
         # TODO: Mark DB with processing error.
         return None
 
-def process_incoming_pop(filepath: str, date_created:str, file_id: str, policy_id:str):
+def process_incoming_pop_transaction(filepath: str, date_created: str, file_id: str, policy_id: str):
     logger.info(f"\n Checking Incoming Pop request:  {filepath}, {date_created}, {file_id}, {policy_id}")
 
     if should_process_file_check_local_db(file_id=file_id):
@@ -419,16 +457,21 @@ def process_incoming_pop(filepath: str, date_created:str, file_id: str, policy_i
             update_local_db(file_id=file_id, date_created=date_created, filepath=filepath, status=PopLocalDatabase.STATUS_FAILED)
             return 
         else:
-            pop_result = process_pop_with_gemini(filepath=filepath)
-            match_results = run_find_popfields_query(policy_id=policy_id)
-            if match_results is not None:
-                get_logger().info(f"Match results: {match_results}")
+            document_result = process_document_with_gemini(filepath=filepath)
+            sqldb_results = find_popfields_sqldb_query(policy_id=policy_id)
+            if sqldb_results is not None:
+                get_logger().info(f"Sqldb query results: {sqldb_results}")
             else:
-                get_logger().error(f"No match results found for policy_id {policy_id}")
+                get_logger().error(f"No Sqldb query results found for policy_id {policy_id}")
             # TODO: Process match results.
+            sqldb_result = sqldb_results[0]
+            match_result = compute_match(pop_document_result=document_result, pop_sqldb_result=sqldb_result)
+            get_logger().info(f"Final Match result: {match_result}")
+            return match_result
     else:
         get_logger().info(f"\n Skipping fileid {file_id} since already processed.")
-    pass
+    return None
+    
 
 def run_pop_automation_loop():
     rows = connect_and_run_query(sql_query=SQL_FIND_POP_LAST100DAYS, config_file=CONFIG_FILE)
@@ -439,7 +482,7 @@ def run_pop_automation_loop():
             print("\n--- Query Results for check_new_pop_entries() ---")
             for row in rows:
                 print(f"FilePath: {row[0]}, Date Created: {row[1]}, FileID: {row[2]}")
-                process_incoming_pop(filepath=row[0], date_created=row[1], file_id=row[2], policy_id=row[3])
+                process_incoming_pop_transaction(filepath=row[0], date_created=row[1], file_id=row[2], policy_id=row[3])
                 print("We process only the first one.. exiting")
                 break
             print("--------------------")
