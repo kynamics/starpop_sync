@@ -3,7 +3,8 @@ import os
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from rich import print
-from rich.console import Console, Panel
+from rich.console import Console
+from rich.panel import Panel
 
 class BotLogger:
     def __init__(self, name="StarBot:", log_dir="logs", max_bytes=10*1024*1024, backup_count=5):
