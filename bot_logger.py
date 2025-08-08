@@ -3,12 +3,13 @@ import os
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from rich import print
-from rich.console import Console
+from rich.console import Console, Panel
 
 class BotLogger:
     def __init__(self, name="StarBot:", log_dir="logs", max_bytes=10*1024*1024, backup_count=5):
         self.name = name
         self.log_dir = log_dir
+        self.console = Console()
         
         os.makedirs(log_dir, exist_ok=True)
         
@@ -51,6 +52,12 @@ class BotLogger:
     def critical(self, message):
         self.logger.critical(message)
         print(f">> {self.name}: {message}\n")
+    
+    def banner(self, message):
+        self.console.print(Panel(message, title="StarBot", border_style="green"))
+
+    def console_print(self, message):
+        self.console.print(f"[bold green]{message}[/bold green]")
 
 
 _bot_logger = None

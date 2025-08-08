@@ -169,6 +169,7 @@ def connect_and_run_query(sql_query: str, config_file: str):
 
     # Step 4: Execute the query
     rows = execute_sql_query(config, sql_query, driver)
+    print(f"connect_and_run_query: Rows: {rows}")
     return rows
 
 
@@ -449,7 +450,7 @@ def process_document_with_gemini(filepath: str):
         return None
 
 def process_incoming_pop_transaction(filepath: str, date_created: str, file_id: str, policy_id: str):
-    logger.info(f"\n Checking Incoming Pop request:  {filepath}, {date_created}, {file_id}, {policy_id}")
+    logger.info(f"\n Checking Incoming Pop request:  {filepath}, {date_created}, {file_id}, {policy_id}\n ")
 
     if should_process_file_check_local_db(file_id=file_id):
         local_subdir = get_config().get(bot_config.BotConfig.LOCAL_POP_FILEDIR_KEY, bot_config.BotConfig.LOCAL_POP_FILEDIR_DEFAULT)
@@ -460,6 +461,7 @@ def process_incoming_pop_transaction(filepath: str, date_created: str, file_id: 
             return 
         else:
             document_result = process_document_with_gemini(filepath=filepath)
+            get_logger().info(f"Document result: {document_result}")
             sqldb_results = find_popfields_sqldb_query(policy_id=policy_id)
             if sqldb_results is not None:
                 get_logger().info(f"Sqldb query results: {sqldb_results}")
@@ -483,7 +485,7 @@ def run_pop_automation_loop():
         if rows:
             print("\n--- Query Results for check_new_pop_entries() ---")
             for row in rows:
-                print(f"FilePath: {row[0]}, Date Created: {row[1]}, FileID: {row[2]}")
+                get_logger().console_print(f"FilePath: {row[0]}, Date Created: {row[1]}, FileID: {row[2]}, PolicyID: {row[3]}\n")
                 process_incoming_pop_transaction(filepath=row[0], date_created=row[1], file_id=row[2], policy_id=row[3])
                 print("We process only the first one.. exiting")
                 break
