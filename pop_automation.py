@@ -394,16 +394,46 @@ def find_popfields_sqldb_query(policy_id: str):
         return None
     return pop_fields_results
 
+def compare_dates(date1, date2) -> bool:
+    """
+    Compare two dates for equality. Handles both string and datetime inputs.
+    
+    Args:
+        date1: First date (str or datetime)
+        date2: Second date (str or datetime)
+        
+    Returns:
+        bool: True if dates are equal, False otherwise
+    """
+    from datetime import datetime
+
+    # Convert strings to datetime if needed
+    if isinstance(date1, str):
+        try:
+            date1 = datetime.strptime(date1, '%Y-%m-%d')
+        except ValueError:
+            return False
+            
+    if isinstance(date2, str):
+        try:
+            date2 = datetime.strptime(date2, '%Y-%m-%d')
+        except ValueError:
+            return False
+
+    # Compare datetime objects
+    return date1.date() == date2.date()
+
+
 def compute_match(pop_document_result: PopResult, pop_sqldb_result: FindPopFieldsResult):
     all_fields_match = True
     fields_that_dont_match = []
     if pop_document_result.named_insured.lower() != pop_sqldb_result.named_insured.lower():
         all_fields_match = False
         fields_that_dont_match.append(MatchField(field_name="named_insured", pop_document_value=pop_document_result.named_insured, sqldb_value=pop_sqldb_result.named_insured))
-    if pop_document_result.effective_date.lower() != pop_sqldb_result.effective_date.lower():
+    if not compare_dates(pop_document_result.effective_date, pop_sqldb_result.effective_date):
         all_fields_match = False
         fields_that_dont_match.append(MatchField(field_name="effective_date", pop_document_value=pop_document_result.effective_date, sqldb_value=pop_sqldb_result.effective_date))
-    if pop_document_result.expiration_date.lower() != pop_sqldb_result.expiration_date.lower():
+    if not compare_dates(pop_document_result.expiration_date, pop_sqldb_result.expiration_date):
         all_fields_match = False
         fields_that_dont_match.append(MatchField(field_name="expiration_date", pop_document_value=pop_document_result.expiration_date, sqldb_value=pop_sqldb_result.expiration_date))
     if pop_document_result.agent_code.lower() != pop_sqldb_result.agent_code.lower():
