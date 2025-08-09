@@ -49,7 +49,40 @@ SQL_FIND_POP_BASIC = """
                 AND DateCreated > GETDATE() - 1
         )
     
+    
 """
+
+def get_sql_insert_into_match_table(policyid, fileid, namedinsured, expirationdate, agentcode,
+     companyname, namedinsuredmatch, expirationdatematch, agentcodematch, companynamematch, remarks):
+    SQL_INSERT_INTO_MATCH_TABLE = f"""
+INSERT INTO POPTaskMatch (
+    PolicyID,
+    FileID,
+    NamedInsured,
+    ExpirationDate,
+    AgentCode,
+    CompanyName,
+    NamedInsuredMatch,
+    ExpirationDateMatch,
+    AgentCodeMatch,
+    CompanyNameMatch,
+    Remarks
+)
+VALUES (
+    '{policyid}',
+    '{fileid}',
+    '{namedinsured}',
+    '{expirationdate}',
+    '{agentcode}',
+    '{companyname}',
+    '{namedinsuredmatch}',
+    '{expirationdatematch}',
+    '{agentcodematch}',
+    '{companynamematch}',
+    '{remarks}'
+);
+    """
+    return SQL_INSERT_INTO_MATCH_TABLE
 
 
 def get_sql_find_popfields_testdb(policyid):
