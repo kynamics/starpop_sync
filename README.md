@@ -15,3 +15,7 @@ Remaining work:
 Error:
 
 some fields can be None during the match 
+
+TODO:
+- Fix SQL to insert into match table.
+- Allow for human approval in the local sql db table. Add human approval trigger.
