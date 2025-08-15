@@ -111,6 +111,7 @@ def update_local_db(file_id: str, date_created: str, filepath: str, status: str,
             return True
     p_id = db.insert_record(file_id=file_id, original_date=date_created, filepath=filepath, status=status, match_result=match_result)
     get_logger().info(f"\n Inserted record into local db with processing id {p_id}")
+    get_logger().info(f"\n Record details: file_id={file_id}, date_created={date_created}, filepath={filepath}, status={status}, match_result={match_result}")
     return True
 
 
