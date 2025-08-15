@@ -334,7 +334,7 @@ def process_incoming_pop_transaction(filepath: str, date_created: str, file_id: 
     
 
 def run_pop_automation_loop():
-    rows = connect_and_run_query(sql_query=SQL_FIND_POP_LAST_ONEDAY, config_file=CONFIG_FILE)
+    rows = connect_and_run_query(sql_query=SQL_FIND_POP_LAST100DAYS, config_file=CONFIG_FILE)
 
     #  Process results
     if rows is not None:
