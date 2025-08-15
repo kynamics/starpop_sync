@@ -85,6 +85,13 @@ VALUES (
     return SQL_INSERT_INTO_MATCH_TABLE
 
 
+def get_sql_dump_match_table():
+    SQL_DUMP_MATCH_TABLE = """
+    SELECT * FROM POPTaskMatch
+    """
+    return SQL_DUMP_MATCH_TABLE
+
+
 def get_sql_find_popfields_testdb(policyid):
     SQL_FIND_POPFIELDS_TESTDB = f"""
 select top 1 d.policyid, NamedInsured, d.EffectiveDate , d.ExpirationDate ,d.agentcode,DBAName,AgentName,ChoiceValue,ChoiceText, dbo.ReadWDDX_udf (decInfo,'PriorCarrier') as PriorCarrier 

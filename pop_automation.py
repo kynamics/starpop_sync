@@ -6,7 +6,7 @@ from typing import Dict, Any, List, Optional, Tuple
 from attr import dataclass
 import bot_config
 from local_db import PopLocalDatabase, get_pop_db
-from pop_sql import SQL_FIND_POP_BASIC, SQL_FIND_POP_LAST100DAYS, get_sql_find_popfields_testdb, SQL_FIND_POP_LAST_ONEDAY, get_sql_insert_into_match_table
+from pop_sql import SQL_FIND_POP_BASIC, SQL_FIND_POP_LAST100DAYS, get_sql_dump_match_table, get_sql_find_popfields_testdb, SQL_FIND_POP_LAST_ONEDAY, get_sql_insert_into_match_table
 from bot_logger import get_logger, get_console
 import shutil, os
 from gemini_with_pdf import define_json_schema, call_gemini_api_with_pdf, validate_json_output
@@ -67,6 +67,26 @@ class MatchResult:
     all_fields_match: bool
     fields_that_dont_match: List[MatchField]  # (field_name, expected_value, actual_value)
 
+    def to_xml(self) -> str:
+        """Convert MatchResult to XML format."""
+        xml_lines = []
+        xml_lines.append("<MatchResult>")
+        xml_lines.append(f"    <policy_id>{self.policy_id}</policy_id>")
+        xml_lines.append(f"    <all_fields_match>{str(self.all_fields_match).lower()}</all_fields_match>")
+        xml_lines.append("    <fields_that_dont_match>")
+        
+        for field in self.fields_that_dont_match:
+            xml_lines.append("        <field>")
+            xml_lines.append(f"            <field_name>{field.field_name}</field_name>")
+            xml_lines.append(f"            <pop_document_value>{field.pop_document_value}</pop_document_value>")
+            xml_lines.append(f"            <sqldb_value>{field.sqldb_value}</sqldb_value>")
+            xml_lines.append("        </field>")
+        
+        xml_lines.append("    </fields_that_dont_match>")
+        xml_lines.append("</MatchResult>")
+        
+        return "\n".join(xml_lines)
+
 
 def should_process_file_check_local_db(file_id: str) -> bool:
     """
@@ -80,7 +100,7 @@ def should_process_file_check_local_db(file_id: str) -> bool:
         return record[4] == "NOT_PROCESSED"  # Index 4 contains the status based on the DB schema
     return True
 
-def update_local_db(file_id: str, date_created: str, filepath: str, status: str) -> bool: 
+def update_local_db(file_id: str, date_created: str, filepath: str, status: str, match_result: str) -> bool: 
     db = get_pop_db()
     record = db.get_record_by_file_id(file_id=file_id)
     if record is not None:
@@ -89,7 +109,7 @@ def update_local_db(file_id: str, date_created: str, filepath: str, status: str)
             return False
         else:
             return True
-    p_id = db.insert_record(file_id=file_id, original_date=date_created, filepath=filepath, status=status)
+    p_id = db.insert_record(file_id=file_id, original_date=date_created, filepath=filepath, status=status, match_result=match_result)
     get_logger().info(f"\n Inserted record into local db with processing id {p_id}")
     return True
 
@@ -189,19 +209,43 @@ def find_popfields_sqldb_query(policy_id: str):
 
 
 # TODO: Fix this function. It is not working. Convert to an XML for the Remarks field. 
-def insert_match_result_into_mssqldb(match_result: MatchResult):
+def insert_match_result_into_mssqldb(file_id:str, named_insured: str, expiration_date: str, agent_code: int, company_name: str, match_result: MatchResult):
+    named_insured_match = True
+    expiration_date_match = True
+    agent_code_match = True
+    company_name_match = True
+    for field in match_result.fields_that_dont_match:
+        if field.field_name == "named_insured":
+            named_insured_match = False
+        elif field.field_name == "expiration_date":
+            expiration_date_match = False
+        elif field.field_name == "agent_code":
+            agent_code_match = False
+        elif field.field_name == "company_name":
+            company_name_match = False
     sql_query = get_sql_insert_into_match_table(policyid=match_result.policy_id,
-        fileid=match_result.fileid, namedinsured=match_result.named_insured,
-        expirationdate=match_result.expiration_date, agentcode=match_result.agent_code,
-        companyname=match_result.company_name, namedinsuredmatch=match_result.named_insured_match,
-        expirationdatematch=match_result.expiration_date_match, agentcodematch=match_result.agent_code_match,
-        companynamematch=match_result.company_name_match, remarks=match_result.remarks)
+        fileid=file_id, namedinsured=named_insured, expirationdate=expiration_date, agentcode=agent_code,
+        companyname=company_name, namedinsuredmatch=named_insured_match,
+        expirationdatematch=expiration_date_match, agentcodematch=agent_code_match,
+        companynamematch=company_name_match, remarks=match_result.to_xml())
     get_logger().info(f"Insert Match Result query: {sql_query}")
     rows = connect_and_run_query(sql_query=sql_query, config_file=CONFIG_FILE)
     if rows is not None:
         get_logger().info(f"Insert Match Result query returned {len(rows)} rows")
     else:
         get_logger().error(f"Insert Match Result query returned no rows for policy_id {match_result.policy_id}")
+    return rows
+
+
+def dump_match_table():
+    sql_query = get_sql_dump_match_table()
+    rows = connect_and_run_query(sql_query=sql_query, config_file=CONFIG_FILE)
+    if rows is not None:
+        get_logger().info(f"Dump Match Table query returned {len(rows)} rows")
+        for row in rows:
+            get_logger().info(f"Row: {row}")
+    else:
+        get_logger().error(f"Dump Match Table query returned no rows")
     return rows
 
 
@@ -265,7 +309,8 @@ def process_incoming_pop_transaction(filepath: str, date_created: str, file_id: 
         if copy_file_into_localdir(filepath=filepath, local_subdir=local_subdir) is None:
             get_logger().error("\n File copy failed. Marking DB with error.")
             # TODO: Mark DB with error. Process error ?
-            update_local_db(file_id=file_id, date_created=date_created, filepath=filepath, status=PopLocalDatabase.STATUS_FAILED)
+            update_local_db(file_id=file_id, date_created=date_created, filepath=filepath,
+                status=PopLocalDatabase.STATUS_FAILED, match_result=PopLocalDatabase.MATCH_RESULT_NOT_MATCHED)
             return 
         else:
             document_result = process_document_with_gemini(filepath=filepath)
@@ -275,12 +320,13 @@ def process_incoming_pop_transaction(filepath: str, date_created: str, file_id: 
                 get_logger().info(f"Sqldb query results: {sqldb_results}")
             else:
                 get_logger().error(f"No Sqldb query results found for policy_id {policy_id}")
-            # TODO: Process match results.
             sqldb_result = sqldb_results[0]
             match_result = compute_match(pop_document_result=document_result, pop_sqldb_result=sqldb_result)
             get_logger().info(f"Final Match result: {match_result}")
             # TODO: Store the match result in the MSSql DB.
-            update_local_db(file_id=file_id, date_created=date_created, filepath=filepath, status=PopLocalDatabase.STATUS_PROCESSED)
+            # TODO: Change local schema to include match result. TODO TODO TODO
+            update_local_db(file_id=file_id, date_created=date_created, filepath=filepath, status=PopLocalDatabase.STATUS_PROCESSED,
+                match_result=f"MATCHED: {match_result}")
             return match_result
     else:
         get_logger().info(f"\n Skipping fileid {file_id} since already processed.")

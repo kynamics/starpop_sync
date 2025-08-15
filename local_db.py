@@ -13,6 +13,9 @@ class PopLocalDatabase:
     STATUS_IN_PROGRESS = "IN_PROGRESS"
     STATUS_FAILED = "FAILED"
     STATUS_PROCESSED = "PROCESSED"
+
+    MATCH_RESULT_NOT_MATCHED = "NOT_MATCHED"
+
     
     def __init__(self, db_path: str = "pop_automation_db.sqlite"):
         self.db_path = db_path
@@ -33,22 +36,23 @@ class PopLocalDatabase:
                     FileID TEXT NOT NULL,
                     originaldate TEXT NOT NULL,
                     filepath TEXT NOT NULL,
-                    status TEXT NOT NULL CHECK (status IN ('NOT_PROCESSED', 'IN_PROGRESS', 'FAILED', 'PROCESSED'))
+                    status TEXT NOT NULL CHECK (status IN ('NOT_PROCESSED', 'IN_PROGRESS', 'FAILED', 'PROCESSED')),
+                    match_result TEXT NOT NULL
                 )
             """)
             conn.commit()
     
     def insert_record(self, file_id: str, original_date: str, filepath: str, 
-                     status: str = "NOT_PROCESSED") -> str:
+                    status: str = "NOT_PROCESSED", match_result: str = "NOT_MATCHED") -> str:
         """Insert a new record and return the generated PopProcessingId."""
         pop_processing_id = str(uuid.uuid4())
         
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO pop_local_state (PopProcessingId, FileID, originaldate, filepath, status)
-                VALUES (?, ?, ?, ?, ?)
-            """, (pop_processing_id, file_id, original_date, filepath, status))
+                INSERT INTO pop_local_state (PopProcessingId, FileID, originaldate, filepath, status, match_result)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (pop_processing_id, file_id, original_date, filepath, status, match_result))
             conn.commit()
         
         return pop_processing_id
@@ -68,7 +72,7 @@ class PopLocalDatabase:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT PopProcessingId, FileID, originaldate, filepath, status
+                SELECT PopProcessingId, FileID, originaldate, filepath, status, match_result
                 FROM pop_local_state WHERE PopProcessingId = ?
             """, (pop_processing_id,))
             return cursor.fetchone()
@@ -78,7 +82,7 @@ class PopLocalDatabase:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT PopProcessingId, FileID, originaldate, filepath, status
+                SELECT PopProcessingId, FileID, originaldate, filepath, status, match_result
                 FROM pop_local_state WHERE status = ?
             """, (status,))
             return cursor.fetchall()
@@ -88,7 +92,7 @@ class PopLocalDatabase:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT PopProcessingId, FileID, originaldate, filepath, status
+                SELECT PopProcessingId, FileID, originaldate, filepath, status, match_result
                 FROM pop_local_state WHERE FileID = ?
             """, (file_id,))
             return cursor.fetchone()
@@ -98,7 +102,7 @@ class PopLocalDatabase:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT PopProcessingId, FileID, originaldate, filepath, status
+                SELECT PopProcessingId, FileID, originaldate, filepath, status, match_result
                 FROM pop_local_state ORDER BY originaldate DESC
             """)
             return cursor.fetchall()
@@ -129,19 +133,22 @@ class PopLocalDatabase:
                 "file_id": "SC001234",
                 "original_date": "2024-01-15 10:30:00",
                 "filepath": "/claims/auto/SC001234_proof_prior.pdf",
-                "status": "NOT_PROCESSED"
+                "status": "NOT_PROCESSED",
+                "match_result": "NOT_MATCHED"
             },
             {
                 "file_id": "SC005678",
                 "original_date": "2024-01-20 14:45:00", 
                 "filepath": "/claims/property/SC005678_prior_coverage.pdf",
-                "status": "PROCESSED"
+                "status": "PROCESSED",
+                "match_result": "NOT_MATCHED"
             },
             {
                 "file_id": "SC009876",
                 "original_date": "2024-01-25 09:15:00",
                 "filepath": "/claims/liability/SC009876_proof_document.pdf",
-                "status": "IN_PROGRESS"
+                "status": "IN_PROGRESS",
+                "match_result": "NOT_MATCHED"
             }
         ]
         
@@ -152,7 +159,8 @@ class PopLocalDatabase:
                     record["file_id"],
                     record["original_date"],
                     record["filepath"],
-                    record["status"]
+                    record["status"],
+                    record["match_result"]
                 )
                 print(f"Added sample record: {record['file_id']} -> {pop_id}")
             else:
