@@ -302,7 +302,9 @@ def process_document_with_gemini(filepath: str):
         # TODO: Mark DB with processing error.
         return None
 
-def process_incoming_pop_transaction(filepath: str, date_created: str, file_id: str, policy_id: str):
+
+
+def process_incoming_pop_transaction(filepath: str, date_created: str, file_id: str, policy_id: str) -> bool:
     logger.info(f"\n Checking Incoming Pop request:  {filepath}, {date_created}, {file_id}, {policy_id}\n ")
 
     if should_process_file_check_local_db(file_id=file_id):
@@ -312,7 +314,7 @@ def process_incoming_pop_transaction(filepath: str, date_created: str, file_id: 
             # TODO: Mark DB with error. Process error ?
             update_local_db(file_id=file_id, date_created=date_created, filepath=filepath,
                 status=PopLocalDatabase.STATUS_FAILED, match_result=PopLocalDatabase.MATCH_RESULT_NOT_MATCHED)
-            return 
+            return True
         else:
             document_result = process_document_with_gemini(filepath=filepath)
             get_logger().info(f"Document result: {document_result}")
@@ -328,10 +330,10 @@ def process_incoming_pop_transaction(filepath: str, date_created: str, file_id: 
             # TODO: Change local schema to include match result. TODO TODO TODO
             update_local_db(file_id=file_id, date_created=date_created, filepath=filepath, status=PopLocalDatabase.STATUS_PROCESSED,
                 match_result=f"MATCHED: {match_result}")
-            return match_result
+            return True
     else:
         get_logger().info(f"\n Skipping fileid {file_id} since already processed.")
-    return None
+        return False
     
 
 def run_pop_automation_loop():
@@ -343,9 +345,14 @@ def run_pop_automation_loop():
             print("\n--- Query Results for check_new_pop_entries() ---")
             for row in rows:
                 get_logger().console_print(f"FilePath: {row[0]}, Date Created: {row[1]}, FileID: {row[2]}, PolicyID: {row[3]}\n")
-                process_incoming_pop_transaction(filepath=row[0], date_created=row[1], file_id=row[2], policy_id=row[3])
-                print("We process only the first one.. exiting")
-                break
+                did_process = process_incoming_pop_transaction(filepath=row[0], date_created=row[1], file_id=row[2], policy_id=row[3])
+                if did_process:
+                    get_logger().info(f"Processed file {row[0]}")
+                    print("We process only the first one.. exiting")
+                    break
+                else:
+                    get_logger().info(f"Skipped file {row[0]}, will attemp the next one.")
+
             print("--------------------")
         else:
             logger.info("\nNo results found for the given query.")
