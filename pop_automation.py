@@ -340,7 +340,7 @@ def process_incoming_pop_transaction(agent_matcher: StarAgentMatcher, filepath: 
     
 
 def run_pop_automation_loop():
-    star_agents_list_file = get_config().get(bot_config.BotConfig.STAR_AGENTS_LIST_KEY, bot_config.BotConfig.STAR_AGENTS_LIST_DEFAULT)
+    star_agents_list_file = get_config().get(bot_config.BotConfig.STAR_AGENTS_LIST_KEY, bot_config.BotConfig.STAR_AGENTS_LIST_DEFAULT).strip("\"")    
     agent_matcher = None
     if not os.path.exists(star_agents_list_file):
         get_logger().error(f"Star Agents List file {star_agents_list_file} does not exist.")
