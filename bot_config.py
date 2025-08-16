@@ -10,6 +10,8 @@ class BotConfig:
     LOGS_DIR_DEFAULT = "logs/"
     LOCAL_POP_FILEDIR_DEFAULT = "pop_files/"
     LOCAL_POP_FILEDIR_KEY = "POP_FILEDIR"
+    STAR_AGENTS_LIST_KEY = "STAR_AGENTS_LIST"
+    STAR_AGENTS_LIST_DEFAULT = "Star Agents List.xlsx"
 
     def __init__(self, config_file="starbot.conf"):
         self.config_file = config_file
