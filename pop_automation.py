@@ -4,6 +4,7 @@ from cmath import exp
 from typing import Dict, Any, List, Optional, Tuple
 
 from attr import dataclass
+from agent_matcher import StarAgentMatcher
 import bot_config
 from local_db import PopLocalDatabase, get_pop_db
 from pop_sql import SQL_FIND_POP_BASIC, SQL_FIND_POP_LAST100DAYS, get_sql_dump_match_table, get_sql_find_popfields_testdb, SQL_FIND_POP_LAST_ONEDAY, get_sql_insert_into_match_table
@@ -250,7 +251,7 @@ def dump_match_table():
     return rows
 
 
-def compute_match(pop_document_result: PopResult, pop_sqldb_result: FindPopFieldsResult):
+def compute_match(agent_matcher: StarAgentMatcher, pop_document_result: PopResult, pop_sqldb_result: FindPopFieldsResult):
     all_fields_match = True
     fields_that_dont_match = []
     if pop_document_result.named_insured.lower() != pop_sqldb_result.named_insured.lower():
@@ -263,8 +264,10 @@ def compute_match(pop_document_result: PopResult, pop_sqldb_result: FindPopField
         all_fields_match = False
         fields_that_dont_match.append(MatchField(field_name="expiration_date", pop_document_value=pop_document_result.expiration_date, sqldb_value=pop_sqldb_result.expiration_date))
     if pop_document_result.agent_code != pop_sqldb_result.agent_code:
-        all_fields_match = False
-        fields_that_dont_match.append(MatchField(field_name="agent_code", pop_document_value=pop_document_result.agent_code, sqldb_value=pop_sqldb_result.agent_code))
+        agent_code_match = agent_matcher.compute_match(pop_document_result.agent_code, pop_sqldb_result.agent_code)
+        if not agent_code_match:
+            all_fields_match = False
+            fields_that_dont_match.append(MatchField(field_name="agent_code", pop_document_value=pop_document_result.agent_code, sqldb_value=pop_sqldb_result.agent_code))
     if not compare_strings(pop_document_result.prior_carrier, pop_sqldb_result.prior_carrier):
         all_fields_match = False
         fields_that_dont_match.append(MatchField(field_name="prior_carrier", pop_document_value=pop_document_result.prior_carrier, sqldb_value=pop_sqldb_result.prior_carrier))
@@ -304,7 +307,7 @@ def process_document_with_gemini(filepath: str):
 
 
 
-def process_incoming_pop_transaction(filepath: str, date_created: str, file_id: str, policy_id: str) -> bool:
+def process_incoming_pop_transaction(agent_matcher: StarAgentMatcher, filepath: str, date_created: str, file_id: str, policy_id: str) -> bool:
     logger.info(f"\n Checking Incoming Pop request:  {filepath}, {date_created}, {file_id}, {policy_id}\n ")
 
     if should_process_file_check_local_db(file_id=file_id):
@@ -324,7 +327,7 @@ def process_incoming_pop_transaction(filepath: str, date_created: str, file_id: 
             else:
                 get_logger().error(f"No Sqldb query results found for policy_id {policy_id}")
             sqldb_result = sqldb_results[0]
-            match_result = compute_match(pop_document_result=document_result, pop_sqldb_result=sqldb_result)
+            match_result = compute_match(agent_matcher=agent_matcher, pop_document_result=document_result, pop_sqldb_result=sqldb_result)
             get_logger().info(f"Final Match result: {match_result}")
             # TODO: Store the match result in the MSSql DB.
             # TODO: Change local schema to include match result. TODO TODO TODO
@@ -337,6 +340,13 @@ def process_incoming_pop_transaction(filepath: str, date_created: str, file_id: 
     
 
 def run_pop_automation_loop():
+    star_agents_list_file = get_config().get(bot_config.BotConfig.STAR_AGENTS_LIST_KEY, bot_config.BotConfig.STAR_AGENTS_LIST_DEFAULT)
+    agent_matcher = None
+    if not os.path.exists(star_agents_list_file):
+        get_logger().error(f"Star Agents List file {star_agents_list_file} does not exist.")
+    else:
+        agent_matcher = StarAgentMatcher(excel_file_path=star_agents_list_file)
+ 
     rows = connect_and_run_query(sql_query=SQL_FIND_POP_LAST100DAYS, config_file=CONFIG_FILE)
 
     #  Process results
@@ -345,7 +355,7 @@ def run_pop_automation_loop():
             print("\n--- Query Results for check_new_pop_entries() ---")
             for row in rows:
                 get_logger().console_print(f"FilePath: {row[0]}, Date Created: {row[1]}, FileID: {row[2]}, PolicyID: {row[3]}\n")
-                did_process = process_incoming_pop_transaction(filepath=row[0], date_created=row[1], file_id=row[2], policy_id=row[3])
+                did_process = process_incoming_pop_transaction(agent_matcher=agent_matcher, filepath=row[0], date_created=row[1], file_id=row[2], policy_id=row[3])
                 if did_process:
                     get_logger().info(f"Processed file {row[0]}")
                     print("We process only the first one.. exiting")

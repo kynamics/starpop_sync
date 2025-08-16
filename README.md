@@ -17,7 +17,7 @@ Error:
 some fields can be None during the match 
 
 TODO:
-- Fix SQL to insert into match table. Done
+- Agent code matching logic
 - Test loop by uploading document to test account. 
 - Allow for human approval in the local sql db table. Add human approval trigger.
 - cfml page to read and show table with fastapi backend possibility.
