@@ -73,6 +73,65 @@ def find_sql_server_driver():
     print("--------------------")
     return None
 
+def execute_sql_insert(config, query, driver):
+    """
+    Connects to a SQL Server database, executes an insert/update/delete query, and returns success status.
+    """
+    connection = None
+    try:
+        server = config['SERVER']
+        database = config['DATABASE']
+        auth_method = config.get('AUTHENTICATION', 'SQL').upper()
+
+        if auth_method == 'WINDOWS':
+            connection_string = f'DRIVER={driver};SERVER={server};DATABASE={database};Trusted_Connection=yes;'
+            print(f"Connecting to {server} using Windows Authentication...")
+        else:
+            username = config['USERNAME']
+            password = config['PASSWORD']
+            connection_string = f'DRIVER={driver};SERVER={server};DATABASE={database};UID={username};PWD={password};'
+            print(f"Connecting to {server} using SQL Server Authentication...")
+            
+
+        print(f"Connection string: {connection_string}")
+        connection = pyodbc.connect(connection_string, timeout=10)
+        print("Connection successful.")
+
+        cursor = connection.cursor()
+        print("Executing insert query...")
+        cursor.execute(query)
+        connection.commit()
+        print("Insert query executed and committed.")
+
+        return True
+
+    except pyodbc.Error as ex:
+        sqlstate = ex.args[0]
+        print(f"\n--- DATABASE ERROR ---")
+        print(f"An error occurred while connecting or executing the insert query.")
+        logger.error(f"DATABASE ERROR: An error occurred while connecting or executing the insert query.")
+        print(f"SQLSTATE: {sqlstate}")
+        print(f"Message: {ex}")
+        print("----------------------")
+        if connection:
+            connection.rollback()
+        return False
+    except KeyError as e:
+        print(f"\n--- CONFIGURATION ERROR ---")
+        print(f"Your '{CONFIG_FILE}' is missing a required setting: {e}")
+        logger.error("CONFIG ERROR: Your '{CONFIG_FILE}' is missing a required setting: {e}")
+        print("---------------------------")
+        return False
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        logger.error(f"Execute Sql Insert: An unexpected error occurred: {e}")
+        if connection:
+            connection.rollback()
+        return False
+    finally:
+        if connection:
+            connection.close()
+
 
 def execute_sql_query(config, query, driver):
     """
@@ -146,3 +205,13 @@ def connect_and_run_query(sql_query: str, config_file: str):
     rows = execute_sql_query(config, sql_query, driver)
     print(f"connect_and_run_query: Rows: {rows}")
     return rows
+
+
+def connect_and_run_insert(sql_query: str, config_file: str):
+    driver = find_sql_server_driver()
+    if not driver:
+        sys.exit(1)
+    config = read_config(config_file)
+    if not config:
+        sys.exit(1)
+    return execute_sql_insert(config, sql_query, driver)
