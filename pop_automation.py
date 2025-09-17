@@ -14,7 +14,7 @@ from gemini_with_pdf import define_json_schema, call_gemini_api_with_pdf, valida
 from bot_config import get_config
 from star_util import CONFIG_FILE, compare_dates, compare_strings, copy_file_into_localdir, to_sql_datetime
 
-from ms_sql_server_connector import connect_and_run_query
+from ms_sql_server_connector import connect_and_run_insert, connect_and_run_query
 import xml.etree.ElementTree as ET
 
 
@@ -265,7 +265,7 @@ def insert_match_result_into_mssqldb(file_id:str, named_insured: str, expiration
         expirationdatematch=expiration_date_match, agentcodematch=agent_code_match,
         companynamematch=company_name_match, remarks=match_result.to_xml())
     get_logger().info(f"Insert Match Result query: {sql_query}")
-    rows = connect_and_run_query(sql_query=sql_query, config_file=CONFIG_FILE)
+    rows = connect_and_run_insert(sql_query=sql_query, config_file=CONFIG_FILE)
     if rows is not None:
         get_logger().info(f"Insert Match Result query returned {len(rows)} rows")
     else:
