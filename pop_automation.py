@@ -12,7 +12,7 @@ from bot_logger import get_logger, get_console
 import shutil, os
 from gemini_with_pdf import define_json_schema, call_gemini_api_with_pdf, validate_json_output
 from bot_config import get_config
-from star_util import CONFIG_FILE, compare_dates, compare_strings, copy_file_into_localdir
+from star_util import CONFIG_FILE, compare_dates, compare_strings, copy_file_into_localdir, to_sql_datetime
 
 from ms_sql_server_connector import connect_and_run_query
 import xml.etree.ElementTree as ET
@@ -249,6 +249,7 @@ def insert_match_result_into_mssqldb(file_id:str, named_insured: str, expiration
     expiration_date_match = True
     agent_code_match = True
     company_name_match = True
+    expiration_date_formatted = to_sql_datetime(expiration_date)
     for field in match_result.fields_that_dont_match:
         if field.field_name == "named_insured":
             named_insured_match = False
@@ -259,7 +260,7 @@ def insert_match_result_into_mssqldb(file_id:str, named_insured: str, expiration
         elif field.field_name == "company_name":
             company_name_match = False
     sql_query = get_sql_insert_into_match_table(policyid=match_result.policy_id,
-        fileid=file_id, namedinsured=named_insured, expirationdate=expiration_date, agentcode=agent_code,
+        fileid=file_id, namedinsured=named_insured, expirationdate=expiration_date_formatted, agentcode=agent_code,
         companyname=company_name, namedinsuredmatch=named_insured_match,
         expirationdatematch=expiration_date_match, agentcodematch=agent_code_match,
         companynamematch=company_name_match, remarks=match_result.to_xml())
