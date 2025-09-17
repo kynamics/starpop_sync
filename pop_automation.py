@@ -265,12 +265,8 @@ def insert_match_result_into_mssqldb(file_id:str, named_insured: str, expiration
         expirationdatematch=expiration_date_match, agentcodematch=agent_code_match,
         companynamematch=company_name_match, remarks=match_result.to_xml())
     get_logger().info(f"Insert Match Result query: {sql_query}")
-    rows = connect_and_run_insert(sql_query=sql_query, config_file=CONFIG_FILE)
-    if rows is not None:
-        get_logger().info(f"Insert Match Result query returned {len(rows)} rows")
-    else:
-        get_logger().error(f"Insert Match Result query returned no rows for policy_id {match_result.policy_id}")
-    return rows
+    connect_and_run_insert(sql_query=sql_query, config_file=CONFIG_FILE)
+
 
 
 def dump_match_table():
