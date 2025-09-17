@@ -15,6 +15,7 @@ from bot_config import get_config
 from star_util import CONFIG_FILE, compare_dates, compare_strings, copy_file_into_localdir
 
 from ms_sql_server_connector import connect_and_run_query
+import xml.etree.ElementTree as ET
 
 
 logger = get_logger()
@@ -87,6 +88,37 @@ class MatchResult:
         xml_lines.append("</MatchResult>")
         
         return "\n".join(xml_lines)
+    @staticmethod
+    def from_xml(xml_string: str) -> 'MatchResult':
+        """Create MatchResult from XML format."""
+
+        
+        root = ET.fromstring(xml_string)
+        
+        policy_id = root.find('policy_id').text
+        all_fields_match = root.find('all_fields_match').text.lower() == 'true'
+        
+        fields_that_dont_match = []
+        fields_element = root.find('fields_that_dont_match')
+        
+        if fields_element is not None:
+            for field_element in fields_element.findall('field'):
+                field_name = field_element.find('field_name').text
+                pop_document_value = field_element.find('pop_document_value').text
+                sqldb_value = field_element.find('sqldb_value').text
+                
+                match_field = MatchField(
+                    field_name=field_name,
+                    pop_document_value=pop_document_value,
+                    sqldb_value=sqldb_value
+                )
+                fields_that_dont_match.append(match_field)
+        
+        return MatchResult(
+            policy_id=policy_id,
+            all_fields_match=all_fields_match,
+            fields_that_dont_match=fields_that_dont_match
+        )
 
 
 def should_process_file_check_local_db(file_id: str) -> bool:
@@ -211,7 +243,8 @@ def find_popfields_sqldb_query(policy_id: str):
 
 
 # TODO: Fix this function. It is not working. Convert to an XML for the Remarks field. 
-def insert_match_result_into_mssqldb(file_id:str, named_insured: str, expiration_date: str, agent_code: int, company_name: str, match_result: MatchResult):
+def insert_match_result_into_mssqldb(file_id:str, named_insured: str, expiration_date: str, agent_code: int,
+ company_name: str, effective_date: str, prior_carrier: str, match_result: MatchResult):
     named_insured_match = True
     expiration_date_match = True
     agent_code_match = True
@@ -305,21 +338,30 @@ def process_document_with_gemini(filepath: str):
         # TODO: Mark DB with processing error.
         return None
 
-
+def delete_local_pop_file(filepath: str):
+    """
+    Delete the local copy of the POP file.
+    """
+    if os.path.exists(filepath):
+        os.remove(filepath)
+        get_logger().info(f"Successfully deleted local copy of file: {filepath}")
+    else:
+        get_logger().warning(f"Local file not found for deletion: {filepath}")
 
 def process_incoming_pop_transaction(agent_matcher: StarAgentMatcher, filepath: str, date_created: str, file_id: str, policy_id: str) -> bool:
     logger.info(f"\n Checking Incoming Pop request:  {filepath}, {date_created}, {file_id}, {policy_id}\n ")
 
     if should_process_file_check_local_db(file_id=file_id):
         local_subdir = get_config().get(bot_config.BotConfig.LOCAL_POP_FILEDIR_KEY, bot_config.BotConfig.LOCAL_POP_FILEDIR_DEFAULT)
-        if copy_file_into_localdir(filepath=filepath, local_subdir=local_subdir) is None:
+        local_copy_filepath = copy_file_into_localdir(filepath=filepath, local_subdir=local_subdir)
+        if local_copy_filepath is None:
             get_logger().error("\n File copy failed. Marking DB with error.")
             # TODO: Mark DB with error. Process error ?
             update_local_db(file_id=file_id, date_created=date_created, filepath=filepath,
                 status=PopLocalDatabase.STATUS_FAILED, match_result=PopLocalDatabase.MATCH_RESULT_NOT_MATCHED)
             return True
         else:
-            document_result = process_document_with_gemini(filepath=filepath)
+            document_result = process_document_with_gemini(filepath=local_copy_filepath)
             get_logger().info(f"Document result: {document_result}")
             sqldb_results = find_popfields_sqldb_query(policy_id=policy_id)
             if sqldb_results is not None:
@@ -330,9 +372,17 @@ def process_incoming_pop_transaction(agent_matcher: StarAgentMatcher, filepath: 
             match_result = compute_match(agent_matcher=agent_matcher, pop_document_result=document_result, pop_sqldb_result=sqldb_result)
             get_logger().info(f"Final Match result: {match_result}")
             # TODO: Store the match result in the MSSql DB.
-            # TODO: Change local schema to include match result. TODO TODO TODO
+            insert_match_result_into_mssqldb(file_id=file_id, named_insured=document_result.named_insured, expiration_date=document_result.expiration_date, agent_code=document_result.agent_code,
+                company_name=document_result.prior_carrier, effective_date=document_result.effective_date, prior_carrier=document_result.prior_carrier, match_result=match_result)
+            # TODO: Add human approval trigger.
             update_local_db(file_id=file_id, date_created=date_created, filepath=filepath, status=PopLocalDatabase.STATUS_PROCESSED,
-                match_result=f"MATCHED: {match_result}")
+                match_result=match_result.to_xml())
+
+            # Delete local copy of the POP file after processing
+            try:
+                delete_local_pop_file(filepath=local_copy_filepath)
+            except Exception as e:
+                get_logger().error(f"Failed to delete local copy of file {local_copy_filepath}: {str(e)}")
             return True
     else:
         get_logger().info(f"\n Skipping fileid {file_id} since already processed.")
@@ -346,6 +396,8 @@ def run_pop_automation_loop():
         get_logger().error(f"Star Agents List file {star_agents_list_file} does not exist.")
     else:
         agent_matcher = StarAgentMatcher(excel_file_path=star_agents_list_file)
+
+
  
     rows = connect_and_run_query(sql_query=SQL_FIND_POP_LAST100DAYS, config_file=CONFIG_FILE)
 
