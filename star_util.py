@@ -2,6 +2,7 @@
 
 from bot_logger import get_logger
 import os, shutil
+from datetime import datetime
 
 CONFIG_FILE = 'env.txt'
 
@@ -29,6 +30,20 @@ def read_config(filename):
         logger.error(f"Error reading configuration file: {e}")
         return None
 
+
+def to_sql_datetime(date_str: str, input_format: str = "%m/%d/%Y") -> str:
+    """
+    Convert a date string to ISO 8601 format (YYYY-MM-DD) for SQL Server DATETIME.
+    
+    Args:
+        date_str (str): Input date string, e.g. '06/30/2024'.
+        input_format (str): Format of the input date string (default = MM/DD/YYYY).
+    
+    Returns:
+        str: ISO 8601 formatted string (YYYY-MM-DD).
+    """
+    dt = datetime.strptime(date_str, input_format)
+    return dt.strftime("%Y-%m-%d")
 
 def copy_file_into_localdir(filepath, local_subdir):
     """
