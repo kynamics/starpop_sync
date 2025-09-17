@@ -55,7 +55,7 @@ SQL_FIND_POP_BASIC = """
 def get_sql_insert_into_match_table(policyid, fileid, namedinsured, expirationdate, agentcode,
      companyname, namedinsuredmatch, expirationdatematch, agentcodematch, companynamematch, remarks):
     SQL_INSERT_INTO_MATCH_TABLE = f"""
-INSERT INTO POPTaskMatch (
+INSERT INTO isdata15testsql..POPTaskMatch (
     PolicyID,
     FileID,
     NamedInsured,
@@ -67,8 +67,7 @@ INSERT INTO POPTaskMatch (
     AgentCodeMatch,
     CompanyNameMatch,
     Remarks
-)
-VALUES (
+) VALUES (
     '{policyid}',
     '{fileid}',
     '{namedinsured}',
