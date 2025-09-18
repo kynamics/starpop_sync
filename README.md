@@ -17,8 +17,6 @@ Error:
 some fields can be None during the match 
 
 TODO:
-- Agent code matching logic
-- Graceful degradation if gemini call fails (error 429 for example)
-- Test loop by uploading document to test account. 
+- Reduce main loop log messages (move to log) and trigger loop. Add loop config time interval.
 - Allow for human approval in the local sql db table. Add human approval trigger.
 - cfml page to read and show table with fastapi backend possibility.
