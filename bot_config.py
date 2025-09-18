@@ -12,6 +12,8 @@ class BotConfig:
     LOCAL_POP_FILEDIR_KEY = "POP_FILEDIR"
     STAR_AGENTS_LIST_KEY = "STAR_AGENTS_LIST"
     STAR_AGENTS_LIST_DEFAULT = "Star Agents List.xlsx"
+    LOOP_TIME_INTERVAL_KEY = "LOOP_TIME_INTERVAL"
+    LOOP_TIME_INTERVAL_DEFAULT = "15"
 
     def __init__(self, config_file="starbot.conf"):
         self.config_file = config_file

@@ -16,6 +16,7 @@ from star_util import CONFIG_FILE, compare_dates, compare_strings, copy_file_int
 
 from ms_sql_server_connector import connect_and_run_insert, connect_and_run_query
 import xml.etree.ElementTree as ET
+import time
 
 
 logger = get_logger()
@@ -395,29 +396,35 @@ def run_pop_automation_loop():
         agent_matcher = StarAgentMatcher(excel_file_path=star_agents_list_file)
 
 
- 
-    rows = connect_and_run_query(sql_query=SQL_FIND_POP_LAST100DAYS, config_file=CONFIG_FILE)
+    loop_time_interval = get_config().get(bot_config.BotConfig.LOOP_TIME_INTERVAL_KEY, bot_config.BotConfig.LOOP_TIME_INTERVAL_DEFAULT)
+    get_logger().info(f"Loop time interval: {loop_time_interval} minutes")
 
-    #  Process results
-    if rows is not None:
-        if rows:
-            print("\n--- Query Results for check_new_pop_entries() ---")
-            for row in rows:
-                get_logger().console_print(f"FilePath: {row[0]}, Date Created: {row[1]}, FileID: {row[2]}, PolicyID: {row[3]}\n")
-                did_process = process_incoming_pop_transaction(agent_matcher=agent_matcher, filepath=row[0], date_created=row[1], file_id=row[2], policy_id=row[3])
-                if did_process:
-                    get_logger().info(f"Processed file {row[0]}")
-                    print("We process only the first one.. exiting")
-                    break
-                else:
-                    get_logger().info(f"Skipped file {row[0]}, will attemp the next one.")
+    while True:
+        rows = connect_and_run_query(sql_query=SQL_FIND_POP_LAST100DAYS, config_file=CONFIG_FILE)
 
-            print("--------------------")
+        #  Process results
+        if rows is not None:
+            if rows:
+                print("\n--- Query Results for check_new_pop_entries() ---")
+                for row in rows:
+                    get_logger().console_print(f"FilePath: {row[0]}, Date Created: {row[1]}, FileID: {row[2]}, PolicyID: {row[3]}\n")
+                    did_process = process_incoming_pop_transaction(agent_matcher=agent_matcher, filepath=row[0], date_created=row[1], file_id=row[2], policy_id=row[3])
+                    if did_process:
+                        get_logger().info(f"Processed file {row[0]}")
+                        # print("We process only the first one.. exiting")
+                        # break
+                    else:
+                        get_logger().info(f"Skipped file {row[0]}, will attempt the next one.")
+
+                print("--------------------")
+            else:
+                logger.info("\nNo results found for the given query.")
+                
         else:
-            logger.info("\nNo results found for the given query.")
-            
-    else:
-        print("\nQuery execution failed. Check the error messages above.")
+            print("\nQuery execution failed. Check the error messages above.")
+
+        print(f"Sleeping for {loop_time_interval} minutes")    
+        time.sleep(loop_time_interval * 60)
 
 if __name__ == "__main__":
     run_pop_automation_loop()
