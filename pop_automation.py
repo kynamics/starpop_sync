@@ -396,7 +396,7 @@ def run_pop_automation_loop():
         agent_matcher = StarAgentMatcher(excel_file_path=star_agents_list_file)
 
 
-    loop_time_interval = get_config().get(bot_config.BotConfig.LOOP_TIME_INTERVAL_KEY, bot_config.BotConfig.LOOP_TIME_INTERVAL_DEFAULT)
+    loop_time_interval = int(get_config().get(bot_config.BotConfig.LOOP_TIME_INTERVAL_KEY, bot_config.BotConfig.LOOP_TIME_INTERVAL_DEFAULT))
     get_logger().info(f"Loop time interval: {loop_time_interval} minutes")
 
     while True:
