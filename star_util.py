@@ -31,6 +31,18 @@ def read_config(filename):
         return None
 
 
+def truncate_filepath(filepath: str) -> str:
+    if len(filepath) > 60:
+        # Split filepath into chunks of 60 characters with "-" continuation
+        filepath_lines = []
+        for i in range(0, len(filepath), 60):
+            chunk = filepath[i:i+60]
+            if i + 60 < len(filepath):
+                chunk += "-"
+            filepath_lines.append(chunk)
+        filepath = "\n".join(filepath_lines)
+    return filepath
+
 def to_sql_datetime(date_str: str, input_format: str = "%m/%d/%Y") -> str:
     """
     Convert a date string to ISO 8601 format (YYYY-MM-DD) for SQL Server DATETIME.

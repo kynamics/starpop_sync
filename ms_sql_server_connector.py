@@ -203,7 +203,7 @@ def connect_and_run_query(sql_query: str, config_file: str):
 
     # Step 4: Execute the query
     rows = execute_sql_query(config, sql_query, driver)
-    print(f"connect_and_run_query: Rows: {rows}")
+    #print(f"connect_and_run_query: Rows: {rows}")
     return rows
 
 

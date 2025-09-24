@@ -13,7 +13,7 @@ import sys
 from bot_logger import get_logger
 from local_db import get_pop_db, PopLocalDatabase
 from pop_sql import SQL_FIND_POP_LAST100DAYS
-from star_util import CONFIG_FILE
+from star_util import CONFIG_FILE, truncate_filepath
 from ms_sql_server_connector import connect_and_run_query
 
 logger = get_logger()
@@ -36,6 +36,7 @@ Available  commands:
 list_local_db    - List entries from local database
 list_mssql       - List entries from MS SQL database  
 delete_local_db  - Delete a record from local database (requires processing_id)
+search_local_db  - Search local database for keyword matches (requires keyword)
 help             - Show this help message
 exit             - Exit the console
         """
@@ -48,6 +49,7 @@ Commands:
 list_local_db    - Display all entries from the local POP database
 list_mssql       - Display recent POP entries from MS SQL database
 delete_local_db  - Delete a record from local database (requires processing_id)
+search_local_db  - Search local database for keyword matches (requires keyword)
 help             - Show this help message
 exit             - Exit the console
 
@@ -83,15 +85,7 @@ You can also type any other text to see it echoed back.
                 date_created = str(entry[2])
                 filepath = entry[3]
                 # Format filepath for multi-line display if it's too long
-                if len(filepath) > 60:
-                    # Split filepath into chunks of 60 characters with "-" continuation
-                    filepath_lines = []
-                    for i in range(0, len(filepath), 60):
-                        chunk = filepath[i:i+60]
-                        if i + 60 < len(filepath):
-                            chunk += "-"
-                        filepath_lines.append(chunk)
-                    filepath = "\n".join(filepath_lines)
+                filepath = truncate_filepath(filepath)
                 status = entry[4]
                 match_result = entry[5]
                 table.add_row(
@@ -165,6 +159,83 @@ You can also type any other text to see it echoed back.
             self.console.print(f"[red]Error deleting record: {e}[/red]")
             logger.error(f"Error in delete_local_db: {e}")
             
+    def search_local_db(self, keyword: str):
+        """Search local database for keyword matches across all fields."""
+        try:
+            if not keyword:
+                self.console.print("[red]Error: search_local_db requires a keyword parameter.[/red]")
+                self.console.print("[yellow]Usage: search_local_db <keyword>[/yellow]")
+                return
+                
+            self.console.print(f"\n[bold green]Searching for keyword: '{keyword}'...[/bold green]")
+            
+            # Get all records from local database
+            db = get_pop_db()
+            entries = db.get_all_records()
+            
+            if not entries:
+                self.console.print("[yellow]No entries found in local database.[/yellow]")
+                return
+                
+            # Search for keyword matches
+            matches = []
+            keyword_lower = keyword.lower()
+            
+            for entry in entries:
+                # Check all fields for keyword match (case-insensitive)
+                processing_id = str(entry[0])
+                file_id = str(entry[1])
+                date_created = str(entry[2])
+                filepath = str(entry[3])
+                status = str(entry[4])
+                match_result = str(entry[5])
+                
+                # Check if keyword matches any field
+                if (keyword_lower in processing_id.lower() or
+                    keyword_lower in file_id.lower() or
+                    keyword_lower in date_created.lower() or
+                    keyword_lower in filepath.lower() or
+                    keyword_lower in status.lower() or
+                    keyword_lower in match_result.lower()):
+                    matches.append(entry)
+            
+            if not matches:
+                self.console.print(f"[yellow]No matches found for keyword: '{keyword}'[/yellow]")
+                return
+                
+            # Create table for display
+            table = Table(title=f"Search Results for '{keyword}' ({len(matches)} matches)")
+            table.add_column("Processing ID", style="cyan")
+            table.add_column("File ID", style="cyan")
+            table.add_column("Date Created", style="magenta")
+            table.add_column("File Path", style="green")
+            table.add_column("Status", style="yellow")
+            table.add_column("Match Result", style="green")
+            
+            for entry in matches:
+                processing_id = str(entry[0])
+                file_id = str(entry[1])
+                date_created = str(entry[2])
+                filepath = truncate_filepath(str(entry[3]))
+                status = str(entry[4])
+                match_result = str(entry[5])
+                
+                table.add_row(
+                    processing_id,
+                    file_id,
+                    date_created,
+                    filepath,
+                    status,
+                    match_result
+                )
+                
+            self.console.print(table)
+            self.console.print(f"[green]Found {len(matches)} matching records[/green]")
+            
+        except Exception as e:
+            self.console.print(f"[red]Error searching local database: {e}[/red]")
+            logger.error(f"Error in search_local_db: {e}")
+            
     def process_command(self, command: str) -> bool:
         """Process a  command. Returns True if command was handled."""
         command = command.strip()
@@ -192,6 +263,16 @@ You can also type any other text to see it echoed back.
                 return True
             processing_id = parts[1]
             self.delete_local_db(processing_id)
+            return True
+        elif command_lower.startswith("search_local_db"):
+            # Parse the keyword parameter
+            parts = command.split()
+            if len(parts) < 2:
+                self.console.print("[red]Error: search_local_db requires a keyword parameter.[/red]")
+                self.console.print("[yellow]Usage: search_local_db <keyword>[/yellow]")
+                return True
+            keyword = parts[1]
+            self.search_local_db(keyword)
             return True
         else:
             return False
