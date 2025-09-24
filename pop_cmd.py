@@ -37,6 +37,7 @@ list_local_db    - List entries from local database
 list_mssql       - List entries from MS SQL database  
 delete_local_db  - Delete a record from local database (requires processing_id)
 search_local_db  - Search local database for keyword matches (requires keyword)
+search_mssql_db  - Search MS SQL database for keyword matches (requires keyword)
 help             - Show this help message
 exit             - Exit the console
         """
@@ -50,6 +51,7 @@ list_local_db    - Display all entries from the local POP database
 list_mssql       - Display recent POP entries from MS SQL database
 delete_local_db  - Delete a record from local database (requires processing_id)
 search_local_db  - Search local database for keyword matches (requires keyword)
+search_mssql_db  - Search MS SQL database for keyword matches (requires keyword)
 help             - Show this help message
 exit             - Exit the console
 
@@ -236,6 +238,72 @@ You can also type any other text to see it echoed back.
             self.console.print(f"[red]Error searching local database: {e}[/red]")
             logger.error(f"Error in search_local_db: {e}")
             
+    def search_mssql_db(self, keyword: str):
+        """Search MS SQL database for keyword matches across all fields."""
+        try:
+            if not keyword:
+                self.console.print("[red]Error: search_mssql_db requires a keyword parameter.[/red]")
+                self.console.print("[yellow]Usage: search_mssql_db <keyword>[/yellow]")
+                return
+                
+            self.console.print(f"\n[bold green]Searching MS SQL database for keyword: '{keyword}'...[/bold green]")
+            
+            # Query MS SQL database
+            rows = connect_and_run_query(sql_query=SQL_FIND_POP_LAST100DAYS, config_file=CONFIG_FILE)
+            
+            if not rows:
+                self.console.print("[yellow]No entries found in MS SQL database.[/yellow]")
+                return
+                
+            # Search for keyword matches
+            matches = []
+            keyword_lower = keyword.lower()
+            
+            for row in rows:
+                # Check all fields for keyword match (case-insensitive)
+                filepath = str(row[0])
+                date_created = str(row[1])
+                file_id = str(row[2])
+                policy_id = str(row[3]) if len(row) > 3 else "N/A"
+                
+                # Check if keyword matches any field
+                if (keyword_lower in filepath.lower() or
+                    keyword_lower in date_created.lower() or
+                    keyword_lower in file_id.lower() or
+                    keyword_lower in policy_id.lower()):
+                    matches.append(row)
+            
+            if not matches:
+                self.console.print(f"[yellow]No matches found for keyword: '{keyword}'[/yellow]")
+                return
+                
+            # Create table for display
+            table = Table(title=f"MS SQL Search Results for '{keyword}' ({len(matches)} matches)")
+            table.add_column("File Path", style="cyan")
+            table.add_column("Date Created", style="magenta")
+            table.add_column("File ID", style="green")
+            table.add_column("Policy ID", style="yellow")
+            
+            for row in matches:
+                filepath = truncate_filepath(str(row[0]))
+                date_created = str(row[1])
+                file_id = str(row[2])
+                policy_id = str(row[3]) if len(row) > 3 else "N/A"
+                
+                table.add_row(
+                    filepath,
+                    date_created,
+                    file_id,
+                    policy_id
+                )
+                
+            self.console.print(table)
+            self.console.print(f"[green]Found {len(matches)} matching records[/green]")
+            
+        except Exception as e:
+            self.console.print(f"[red]Error searching MS SQL database: {e}[/red]")
+            logger.error(f"Error in search_mssql_db: {e}")
+            
     def process_command(self, command: str) -> bool:
         """Process a  command. Returns True if command was handled."""
         command = command.strip()
@@ -273,6 +341,16 @@ You can also type any other text to see it echoed back.
                 return True
             keyword = parts[1]
             self.search_local_db(keyword)
+            return True
+        elif command_lower.startswith("search_mssql_db"):
+            # Parse the keyword parameter
+            parts = command.split()
+            if len(parts) < 2:
+                self.console.print("[red]Error: search_mssql_db requires a keyword parameter.[/red]")
+                self.console.print("[yellow]Usage: search_mssql_db <keyword>[/yellow]")
+                return True
+            keyword = parts[1]
+            self.search_mssql_db(keyword)
             return True
         else:
             return False
