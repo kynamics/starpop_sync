@@ -157,16 +157,16 @@ You can also type any other text to see it echoed back.
         while self.running:
             try:
                 # Get user input
-                user_input = Prompt.ask("\n[bold blue]POP Console[/bold blue]")
+                user_input = Prompt.ask("\n[bold blue]POP Console>[/bold blue]")
                 
-                # Process slash commands
-                if user_input.startswith("/"):
-                    if not self.process_command(user_input):
-                        self.console.print(f"[red]Unknown command: {user_input}[/red]")
-                        self.console.print("[yellow]Type /help for available commands.[/yellow]")
-                else:
-                    # Echo non-command input
-                    self.console.print(f"[green]You said: {user_input}[/green]")
+                # # Process slash commands
+                # if user_input.startswith("/"):
+                if not self.process_command(user_input):
+                    self.console.print(f"[red]Unknown command: {user_input}[/red]")
+                    self.console.print("[yellow]Type /help for available commands.[/yellow]")
+                # else:
+                #     # Echo non-command input
+                #     self.console.print(f"[green]You said: {user_input}[/green]")
                     
             except KeyboardInterrupt:
                 self.console.print("\n[bold red]Goodbye![/bold red]")
