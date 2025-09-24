@@ -34,10 +34,10 @@ class PopConsole:
         help_text = """
 Available  commands:
 list_local_db    - List entries from local database
-list_mssql       - List entries from MS SQL database  
+list_mstask_db  - List entries from MS SQL Task Table database  
 delete_local_db  - Delete a record from local database (requires processing_id)
 search_local_db  - Search local database for keyword matches (requires keyword)
-search_mssql_db  - Search MS SQL database for keyword matches (requires keyword)
+search_mstask_db  - Search MS SQL Task Table database for keyword matches (requires keyword)
 help             - Show this help message
 exit             - Exit the console
         """
@@ -48,10 +48,10 @@ exit             - Exit the console
         help_text = """
 Commands:
 list_local_db    - Display all entries from the local POP database
-list_mssql       - Display recent POP entries from MS SQL database
+list_mstask_db  - Display recent POP entries from MS SQL Task Table database
 delete_local_db  - Delete a record from local database (requires processing_id)
 search_local_db  - Search local database for keyword matches (requires keyword)
-search_mssql_db  - Search MS SQL database for keyword matches (requires keyword)
+search_mstask_db  - Search MS SQL database for keyword matches (requires keyword)
 help             - Show this help message
 exit             - Exit the console
 
@@ -105,7 +105,7 @@ You can also type any other text to see it echoed back.
             self.console.print(f"[red]Error fetching local database entries: {e}[/red]")
             logger.error(f"Error in list_local_db: {e}")
             
-    def list_mssql(self):
+    def list_mstask_db(self):
         """List entries from MS SQL database."""
         try:
             self.console.print("\n[bold green]Fetching MS SQL database entries...[/bold green]")
@@ -136,7 +136,7 @@ You can also type any other text to see it echoed back.
             
         except Exception as e:
             self.console.print(f"[red]Error fetching MS SQL database entries: {e}[/red]")
-            logger.error(f"Error in list_mssql: {e}")
+            logger.error(f"Error in list_mstask_db: {e}")
             
     def delete_local_db(self, processing_id: str):
         """Delete a record from local database by processing ID."""
@@ -238,12 +238,12 @@ You can also type any other text to see it echoed back.
             self.console.print(f"[red]Error searching local database: {e}[/red]")
             logger.error(f"Error in search_local_db: {e}")
             
-    def search_mssql_db(self, keyword: str):
+    def search_mstask_db(self, keyword: str):
         """Search MS SQL database for keyword matches across all fields."""
         try:
             if not keyword:
-                self.console.print("[red]Error: search_mssql_db requires a keyword parameter.[/red]")
-                self.console.print("[yellow]Usage: search_mssql_db <keyword>[/yellow]")
+                self.console.print("[red]Error: search_mstask_db requires a keyword parameter.[/red]")
+                self.console.print("[yellow]Usage: search_mstask_db <keyword>[/yellow]")
                 return
                 
             self.console.print(f"\n[bold green]Searching MS SQL database for keyword: '{keyword}'...[/bold green]")
@@ -302,7 +302,7 @@ You can also type any other text to see it echoed back.
             
         except Exception as e:
             self.console.print(f"[red]Error searching MS SQL database: {e}[/red]")
-            logger.error(f"Error in search_mssql_db: {e}")
+            logger.error(f"Error in search_mstask_db: {e}")
             
     def process_command(self, command: str) -> bool:
         """Process a  command. Returns True if command was handled."""
@@ -315,8 +315,8 @@ You can also type any other text to see it echoed back.
         elif command_lower == "list_local_db":
             self.list_local_db()
             return True
-        elif command_lower == "list_mssql":
-            self.list_mssql()
+        elif command_lower == "list_mstask_db":
+            self.list_mstask_db()
             return True
         elif command_lower == "exit":
             self.console.print("[bold red]Goodbye![/bold red]")
@@ -342,15 +342,15 @@ You can also type any other text to see it echoed back.
             keyword = parts[1]
             self.search_local_db(keyword)
             return True
-        elif command_lower.startswith("search_mssql_db"):
+        elif command_lower.startswith("search_mstask_db"):
             # Parse the keyword parameter
             parts = command.split()
             if len(parts) < 2:
-                self.console.print("[red]Error: search_mssql_db requires a keyword parameter.[/red]")
-                self.console.print("[yellow]Usage: search_mssql_db <keyword>[/yellow]")
+                self.console.print("[red]Error: search_mstask_db requires a keyword parameter.[/red]")
+                self.console.print("[yellow]Usage: search_mstask_db <keyword>[/yellow]")
                 return True
             keyword = parts[1]
-            self.search_mssql_db(keyword)
+            self.search_mstask_db(keyword)
             return True
         else:
             return False

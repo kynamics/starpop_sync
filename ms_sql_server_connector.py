@@ -6,7 +6,7 @@ import bot_config
 
 import pyodbc
 import sys # Used for exiting the script gracefully
-from pop_sql import SQL_FIND_POP_BASIC, SQL_FIND_POP_LAST100DAYS, get_sql_find_popfields_testdb, SQL_FIND_POP_LAST_ONEDAY, get_sql_insert_into_match_table
+from pop_sql import SQL_FIND_POP_BASIC, SQL_FIND_POP_LAST100DAYS, get_sql_dump_match_table, get_sql_find_popfields_testdb, SQL_FIND_POP_LAST_ONEDAY, get_sql_insert_into_match_table
 from bot_logger import get_logger, get_console
 from star_util import CONFIG_FILE, read_config
 
@@ -215,3 +215,8 @@ def connect_and_run_insert(sql_query: str, config_file: str):
     if not config:
         sys.exit(1)
     return execute_sql_insert(config, sql_query, driver)
+
+def fetch_match_table_rows():
+    sql_query = get_sql_dump_match_table()
+    rows = connect_and_run_query(sql_query=sql_query, config_file=CONFIG_FILE)
+    return rows
