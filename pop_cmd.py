@@ -80,6 +80,16 @@ You can also type any other text to see it echoed back.
                 file_id = entry[1]
                 date_created = str(entry[2])
                 filepath = entry[3]
+                # Format filepath for multi-line display if it's too long
+                if len(filepath) > 60:
+                    # Split filepath into chunks of 60 characters with "-" continuation
+                    filepath_lines = []
+                    for i in range(0, len(filepath), 60):
+                        chunk = filepath[i:i+60]
+                        if i + 60 < len(filepath):
+                            chunk += "-"
+                        filepath_lines.append(chunk)
+                    filepath = "\n".join(filepath_lines)
                 status = entry[4]
                 match_result = entry[5]
                 table.add_row(
