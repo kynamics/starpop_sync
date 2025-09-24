@@ -2,6 +2,7 @@
 # from tarfile import data_filter
 from cmath import exp
 from typing import Dict, Any, List, Optional, Tuple
+import argparse
 
 from attr import dataclass
 from agent_matcher import StarAgentMatcher
@@ -426,5 +427,21 @@ def run_pop_automation_loop():
         print(f"Sleeping for {loop_time_interval} minutes")    
         time.sleep(loop_time_interval * 60)
 
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description='StarCasualty POP Automation Program')
+    parser.add_argument('--console', action='store_true', 
+                       help='Open interactive console mode with rich text interface')
+    return parser.parse_args()
+
 if __name__ == "__main__":
-    run_pop_automation_loop()
+    args = parse_arguments()
+    
+    if args.console:
+        # Import and run console mode
+        from pop_cmd import run_pop_console
+        run_pop_console()
+    else:
+        # Run normal automation loop
+        run_pop_automation_loop()
+    
