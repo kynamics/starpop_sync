@@ -35,6 +35,7 @@ class PopConsole:
 Available  commands:
 list_local_db    - List entries from local database
 list_mssql       - List entries from MS SQL database  
+delete_local_db  - Delete a record from local database (requires processing_id)
 help             - Show this help message
 exit             - Exit the console
         """
@@ -43,9 +44,10 @@ exit             - Exit the console
     def show_help(self):
         """Display help information."""
         help_text = """
-Slash Commands:
+Commands:
 list_local_db    - Display all entries from the local POP database
 list_mssql       - Display recent POP entries from MS SQL database
+delete_local_db  - Delete a record from local database (requires processing_id)
 help             - Show this help message
 exit             - Exit the console
 
@@ -140,22 +142,56 @@ You can also type any other text to see it echoed back.
             self.console.print(f"[red]Error fetching MS SQL database entries: {e}[/red]")
             logger.error(f"Error in list_mssql: {e}")
             
+    def delete_local_db(self, processing_id: str):
+        """Delete a record from local database by processing ID."""
+        try:
+            if not processing_id:
+                self.console.print("[red]Error: Processing ID is required for delete_local_db command.[/red]")
+                self.console.print("[yellow]Usage: delete_local_db <processing_id>[/yellow]")
+                return
+                
+            self.console.print(f"\n[bold green]Deleting record with processing ID: {processing_id}...[/bold green]")
+            
+            # Get database instance and delete record
+            db = get_pop_db()
+            success = db.delete_record(processing_id)
+            
+            if success:
+                self.console.print(f"[green]Successfully deleted record with processing ID: {processing_id}[/green]")
+            else:
+                self.console.print(f"[yellow]No record found with processing ID: {processing_id}[/yellow]")
+                
+        except Exception as e:
+            self.console.print(f"[red]Error deleting record: {e}[/red]")
+            logger.error(f"Error in delete_local_db: {e}")
+            
     def process_command(self, command: str) -> bool:
         """Process a  command. Returns True if command was handled."""
-        command = command.strip().lower()
+        command = command.strip()
+        command_lower = command.lower()
         
-        if command == "help":
+        if command_lower == "help":
             self.show_help()
             return True
-        elif command == "list_local_db":
+        elif command_lower == "list_local_db":
             self.list_local_db()
             return True
-        elif command == "list_mssql":
+        elif command_lower == "list_mssql":
             self.list_mssql()
             return True
-        elif command == "exit":
+        elif command_lower == "exit":
             self.console.print("[bold red]Goodbye![/bold red]")
             self.running = False
+            return True
+        elif command_lower.startswith("delete_local_db"):
+            # Parse the processing_id parameter
+            parts = command.split()
+            if len(parts) < 2:
+                self.console.print("[red]Error: delete_local_db requires a processing_id parameter.[/red]")
+                self.console.print("[yellow]Usage: delete_local_db <processing_id>[/yellow]")
+                return True
+            processing_id = parts[1]
+            self.delete_local_db(processing_id)
             return True
         else:
             return False
