@@ -14,7 +14,7 @@ from bot_logger import get_logger
 from local_db import get_pop_db, PopLocalDatabase
 from pop_sql import SQL_FIND_POP_LAST100DAYS
 from star_util import CONFIG_FILE, truncate_filepath
-from ms_sql_server_connector import connect_and_run_query
+from ms_sql_server_connector import connect_and_run_query, fetch_match_table_rows
 
 logger = get_logger()
 console = Console()
@@ -35,9 +35,11 @@ class PopConsole:
 Available  commands:
 list_local_db    - List entries from local database
 list_mstask_db  - List entries from MS SQL Task Table database  
+list_match_db    - List entries from MS SQL Match Table database
 delete_local_db  - Delete a record from local database (requires processing_id)
 search_local_db  - Search local database for keyword matches (requires keyword)
 search_mstask_db  - Search MS SQL Task Table database for keyword matches (requires keyword)
+search_match_db   - Search MS SQL Match Table database for keyword matches (requires keyword)
 help             - Show this help message
 exit             - Exit the console
         """
@@ -49,9 +51,11 @@ exit             - Exit the console
 Commands:
 list_local_db    - Display all entries from the local POP database
 list_mstask_db  - Display recent POP entries from MS SQL Task Table database
+list_match_db    - Display all entries from the MS SQL Match Table database
 delete_local_db  - Delete a record from local database (requires processing_id)
 search_local_db  - Search local database for keyword matches (requires keyword)
 search_mstask_db  - Search MS SQL database for keyword matches (requires keyword)
+search_match_db   - Search MS SQL Match Table database for keyword matches (requires keyword)
 help             - Show this help message
 exit             - Exit the console
 
@@ -137,6 +141,51 @@ You can also type any other text to see it echoed back.
         except Exception as e:
             self.console.print(f"[red]Error fetching MS SQL database entries: {e}[/red]")
             logger.error(f"Error in list_mstask_db: {e}")
+            
+    def list_match_db(self):
+        """List entries from MS SQL Match Table database."""
+        try:
+            self.console.print("\n[bold green]Fetching MS SQL Match Table entries...[/bold green]")
+            
+            # Fetch match table rows
+            rows = fetch_match_table_rows()
+            
+            if not rows:
+                self.console.print("[yellow]No entries found in MS SQL Match Table database.[/yellow]")
+                return
+                
+            # Create table for display
+            table = Table(title="MS SQL Match Table Entries")
+            table.add_column("Column 1", style="cyan")
+            table.add_column("Column 2", style="magenta")
+            table.add_column("Column 3", style="green")
+            table.add_column("Column 4", style="yellow")
+            table.add_column("Column 5", style="blue")
+            
+            # Display first few rows to understand structure
+            for i, row in enumerate(rows[:10]):  # Limit to first 10 rows for display
+                # Convert all values to strings and handle None values
+                row_values = [str(val) if val is not None else "N/A" for val in row]
+                
+                # Pad with empty strings if row has fewer columns than expected
+                while len(row_values) < 5:
+                    row_values.append("")
+                
+                # Truncate if row has more columns than expected
+                row_values = row_values[:5]
+                
+                table.add_row(*row_values)
+            
+            self.console.print(table)
+            
+            if len(rows) > 10:
+                self.console.print(f"[yellow]Showing first 10 of {len(rows)} total entries[/yellow]")
+            else:
+                self.console.print(f"[green]Displayed {len(rows)} entries[/green]")
+            
+        except Exception as e:
+            self.console.print(f"[red]Error fetching MS SQL Match Table entries: {e}[/red]")
+            logger.error(f"Error in list_match_db: {e}")
             
     def delete_local_db(self, processing_id: str):
         """Delete a record from local database by processing ID."""
@@ -304,6 +353,67 @@ You can also type any other text to see it echoed back.
             self.console.print(f"[red]Error searching MS SQL database: {e}[/red]")
             logger.error(f"Error in search_mstask_db: {e}")
             
+    def search_match_db(self, keyword: str):
+        """Search MS SQL Match Table database for keyword matches across all fields."""
+        try:
+            if not keyword:
+                self.console.print("[red]Error: search_match_db requires a keyword parameter.[/red]")
+                self.console.print("[yellow]Usage: search_match_db <keyword>[/yellow]")
+                return
+                
+            self.console.print(f"\n[bold green]Searching MS SQL Match Table for keyword: '{keyword}'...[/bold green]")
+            
+            # Fetch match table rows
+            rows = fetch_match_table_rows()
+            
+            if not rows:
+                self.console.print("[yellow]No entries found in MS SQL Match Table database.[/yellow]")
+                return
+                
+            # Search for keyword matches
+            matches = []
+            keyword_lower = keyword.lower()
+            
+            for row in rows:
+                # Check all fields for keyword match (case-insensitive)
+                row_str_values = [str(val) if val is not None else "" for val in row]
+                
+                # Check if keyword matches any field
+                if any(keyword_lower in str_val.lower() for str_val in row_str_values):
+                    matches.append(row)
+            
+            if not matches:
+                self.console.print(f"[yellow]No matches found for keyword: '{keyword}'[/yellow]")
+                return
+                
+            # Create table for display
+            table = Table(title=f"MS SQL Match Table Search Results for '{keyword}' ({len(matches)} matches)")
+            table.add_column("Column 1", style="cyan")
+            table.add_column("Column 2", style="magenta")
+            table.add_column("Column 3", style="green")
+            table.add_column("Column 4", style="yellow")
+            table.add_column("Column 5", style="blue")
+            
+            for row in matches:
+                # Convert all values to strings and handle None values
+                row_values = [str(val) if val is not None else "N/A" for val in row]
+                
+                # Pad with empty strings if row has fewer columns than expected
+                while len(row_values) < 5:
+                    row_values.append("")
+                
+                # Truncate if row has more columns than expected
+                row_values = row_values[:5]
+                
+                table.add_row(*row_values)
+                
+            self.console.print(table)
+            self.console.print(f"[green]Found {len(matches)} matching records[/green]")
+            
+        except Exception as e:
+            self.console.print(f"[red]Error searching MS SQL Match Table: {e}[/red]")
+            logger.error(f"Error in search_match_db: {e}")
+            
     def process_command(self, command: str) -> bool:
         """Process a  command. Returns True if command was handled."""
         command = command.strip()
@@ -317,6 +427,9 @@ You can also type any other text to see it echoed back.
             return True
         elif command_lower == "list_mstask_db":
             self.list_mstask_db()
+            return True
+        elif command_lower == "list_match_db":
+            self.list_match_db()
             return True
         elif command_lower == "exit":
             self.console.print("[bold red]Goodbye![/bold red]")
@@ -351,6 +464,16 @@ You can also type any other text to see it echoed back.
                 return True
             keyword = parts[1]
             self.search_mstask_db(keyword)
+            return True
+        elif command_lower.startswith("search_match_db"):
+            # Parse the keyword parameter
+            parts = command.split()
+            if len(parts) < 2:
+                self.console.print("[red]Error: search_match_db requires a keyword parameter.[/red]")
+                self.console.print("[yellow]Usage: search_match_db <keyword>[/yellow]")
+                return True
+            keyword = parts[1]
+            self.search_match_db(keyword)
             return True
         else:
             return False
