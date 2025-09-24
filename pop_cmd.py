@@ -32,11 +32,11 @@ class PopConsole:
         self.console.print(Panel(welcome_text, title="Welcome", border_style="green"))
         
         help_text = """
-Available slash commands:
-/list_local_db    - List entries from local database
-/list_mssql       - List entries from MS SQL database  
-/help             - Show this help message
-/exit             - Exit the console
+Available  commands:
+list_local_db    - List entries from local database
+list_mssql       - List entries from MS SQL database  
+help             - Show this help message
+exit             - Exit the console
         """
         self.console.print(Panel(help_text.strip(), title="Commands", border_style="yellow"))
         
@@ -44,10 +44,10 @@ Available slash commands:
         """Display help information."""
         help_text = """
 Slash Commands:
-/list_local_db    - Display all entries from the local POP database
-/list_mssql       - Display recent POP entries from MS SQL database
-/help             - Show this help message
-/exit             - Exit the console
+list_local_db    - Display all entries from the local POP database
+list_mssql       - Display recent POP entries from MS SQL database
+help             - Show this help message
+exit             - Exit the console
 
 You can also type any other text to see it echoed back.
         """
@@ -60,7 +60,7 @@ You can also type any other text to see it echoed back.
             
             # Get local database entries
             db = get_pop_db()
-            entries = db.get_all_entries()
+            entries = db.get_all_records()
             
             if not entries:
                 self.console.print("[yellow]No entries found in local database.[/yellow]")
@@ -68,17 +68,27 @@ You can also type any other text to see it echoed back.
                 
             # Create table for display
             table = Table(title="Local Database Entries")
+            table.add_column("Processing ID", style="cyan")
             table.add_column("File ID", style="cyan")
             table.add_column("Date Created", style="magenta")
             table.add_column("File Path", style="green")
             table.add_column("Status", style="yellow")
+            table.add_column("Match Result", style="green")
             
             for entry in entries:
+                processing_id = entry[0]
+                file_id = entry[1]
+                date_created = str(entry[2])
+                filepath = entry[3]
+                status = entry[4]
+                match_result = entry[5]
                 table.add_row(
-                    str(entry.file_id),
-                    entry.date_created,
-                    entry.filepath,
-                    entry.status
+                    str(processing_id),
+                    file_id,
+                    date_created,
+                    filepath,
+                    status,
+                    match_result
                 )
                 
             self.console.print(table)
@@ -109,7 +119,7 @@ You can also type any other text to see it echoed back.
             for row in rows:
                 table.add_row(
                     row[0],  # FilePath
-                    row[1],  # Date Created
+                    str(row[1]),  # Date Created
                     row[2],  # FileID
                     row[3] if len(row) > 3 else "N/A"  # PolicyID
                 )
@@ -121,19 +131,19 @@ You can also type any other text to see it echoed back.
             logger.error(f"Error in list_mssql: {e}")
             
     def process_command(self, command: str) -> bool:
-        """Process a slash command. Returns True if command was handled."""
+        """Process a  command. Returns True if command was handled."""
         command = command.strip().lower()
         
-        if command == "/help":
+        if command == "help":
             self.show_help()
             return True
-        elif command == "/list_local_db":
+        elif command == "list_local_db":
             self.list_local_db()
             return True
-        elif command == "/list_mssql":
+        elif command == "list_mssql":
             self.list_mssql()
             return True
-        elif command == "/exit":
+        elif command == "exit":
             self.console.print("[bold red]Goodbye![/bold red]")
             self.running = False
             return True
