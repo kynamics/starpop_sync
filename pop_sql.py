@@ -79,18 +79,20 @@ INSERT INTO isdata15testsql..POPTaskMatch (
     '{agentcodematch}',
     '{companynamematch}',
     '{remarks}'
-) ON DUPLICATE KEY UPDATE
+); """
 
-    NamedInsured = '{namedinsured}',
-    ExpirationDate = '{expirationdate}',
-    AgentCode = '{agentcode}',
-    CompanyName = '{companyname}',
-    NamedInsuredMatch = '{namedinsuredmatch}',
-    ExpirationDateMatch = '{expirationdatematch}',
-    AgentCodeMatch = '{agentcodematch}',
-    CompanyNameMatch = '{companynamematch}',
-    Remarks = '{remarks}';
-    """
+    # """ON DUPLICATE KEY UPDATE
+
+    # NamedInsured = '{namedinsured}',
+    # ExpirationDate = '{expirationdate}',
+    # AgentCode = '{agentcode}',
+    # CompanyName = '{companyname}',
+    # NamedInsuredMatch = '{namedinsuredmatch}',
+    # ExpirationDateMatch = '{expirationdatematch}',
+    # AgentCodeMatch = '{agentcodematch}',
+    # CompanyNameMatch = '{companynamematch}',
+    # Remarks = '{remarks}';
+    # """
     return SQL_INSERT_INTO_MATCH_TABLE
 
 
