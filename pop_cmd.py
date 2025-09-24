@@ -130,10 +130,10 @@ You can also type any other text to see it echoed back.
             
             for row in rows:
                 table.add_row(
-                    row[0],  # FilePath
+                    str(row[0]),  # FilePath
                     str(row[1]),  # Date Created
-                    row[2],  # FileID
-                    row[3] if len(row) > 3 else "N/A"  # PolicyID
+                    str(row[2]),  # FileID
+                    str(row[3])  if len(row) > 3 else "N/A"  # PolicyID
                 )
                 
             self.console.print(table)
